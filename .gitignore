@@ -8,7 +8,7 @@ main
 
 object_files/*
 
-data/*
+# data/*
 
 source/~/*
 
