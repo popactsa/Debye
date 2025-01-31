@@ -2,7 +2,7 @@
 
 *.exe
 
-*.png
+# *.png
 
 main
 
