@@ -1,9 +1,5 @@
 #!/usr/bin/env python
 # coding: utf-8
-
-# In[34]:
-
-
 import numpy as np
 import locale
 import matplotlib.pyplot as plt
@@ -14,7 +10,7 @@ from statistics import median
 from enum import Enum
 
 # Set to German locale to get comma decimal separater
-locale.setlocale(locale.LC_NUMERIC, "ru_RU")
+# locale.setlocale(locale.LC_NUMERIC, "ru_RU")
 plt.rcParams.update({"font.size": 13})
 params = {"text.latex.preamble": r"\usepackage{icomma}"}
 plt.rcParams["axes.formatter.use_locale"] = True
@@ -31,7 +27,6 @@ erg_to_eV = 6.242e11
 K_to_erg = 1.381e-16
 erg_to_K = 7.243e15
 Cl_to_SGS = 3.0e9
-
 
 me = 9.11e-28  # electron mass
 mi = 1.67e-24  # ion(proton) mass
@@ -60,7 +55,6 @@ def TK(T):  # dimensionless form temperature to [K]
 
 def TD(T):  # [K] temperature to dimensionless form
     return T / Te * K_to_erg
-
 
 # In[35]:
 
@@ -269,7 +263,7 @@ n_e_classic_net = np.zeros(Tw_classic_net_steps)
 derw_classic_net = np.zeros(Tw_classic_net_steps)
 jte_classic_net = np.zeros(Tw_classic_net_steps)
 
-for i in range(Tw_classic_net_steps - 1, -1, -1):
+for i in range(Tw_classic_net_steps - 1, -1, -1): # can be easily done in a forward iteration, too lazy to rework
     Tw = Tw_classic_net[i]
     args = (Tw, Te, nse, 0.0)
     # sol_classic = optimize.fsolve(sys_classic, [0.5, 0.9, -2.0, -0.6], args=args)
