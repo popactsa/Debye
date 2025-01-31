@@ -571,9 +571,9 @@ x_net_alpha_plot_steps = 201
 x_net_alpha_plot = np.linspace(0, x_net_alpha_plot_max, x_net_alpha_plot_steps)
 
 E_field_alpha_guess = np.full((2, np.shape(x_net_alpha)[0]), phi_se_trans + V_f_trans + Tw_trans)
-SCL_dist_plot_num = 10
+SCL_dist_plot_num = 60
 
-E_plot_alpha      = np.zeros(np.shape(x_net_alpha_plot)[0])
+der_plot_alpha      = np.zeros(np.shape(x_net_alpha_plot)[0])
 phi_plot_alpha    = np.zeros(np.shape(x_net_alpha_plot)[0])
 ne_plot_alpha     = np.zeros(np.shape(x_net_alpha_plot)[0])
 ni_plot_alpha     = np.zeros(np.shape(x_net_alpha_plot)[0])
@@ -598,10 +598,10 @@ for i in range(Tw_SCL_net_steps):
     ]
     sol = SCL_distribution_alpha_sys(x_net_alpha, E_field_alpha_guess, *args)
     phi_plot_alpha = sol.sol(x_net_alpha_plot)[0]
-    E_plot_alpha = sol.sol(x_net_alpha_plot)[1]
-    ne_plot_alpha = ne_func_alpha([phi_plot_alpha, E_plot_alpha], args)
+    der_plot_alpha = sol.sol(x_net_alpha_plot)[1]
+    ne_plot_alpha = ne_func_alpha([phi_plot_alpha, der_plot_alpha], args)
     ni_plot_alpha = ni_func_alpha(phi_plot_alpha, args)
-    nte_plot_alpha = nte_func_alpha([phi_plot_alpha, E_plot_alpha], args)
+    nte_plot_alpha = nte_func_alpha([phi_plot_alpha, der_plot_alpha], args)
     if i == SCL_dist_plot_num:
         break
 
@@ -612,6 +612,10 @@ n_alpha_wall = 0
 while (phi_plot_alpha[n_alpha_wall] > V_f_SCL_net[SCL_dist_plot_num] + phi_se_SCL_net[SCL_dist_plot_num]): n_alpha_wall += 1
 x_net_alpha_plot = np.linspace(0, x_net_alpha_plot_max - x_net_alpha_plot[n_alpha_wall], x_net_alpha_plot_steps - n_alpha_wall)
 phi_plot_alpha = phi_plot_alpha[n_alpha_wall:]
+der_plot_alpha = der_plot_alpha[n_alpha_wall:]
+ne_plot_alpha = ne_plot_alpha[n_alpha_wall:]
+ni_plot_alpha = ni_plot_alpha[n_alpha_wall:]
+nte_plot_alpha = nte_plot_alpha[n_alpha_wall:]
 
 def ne_func(E_field, args):
     derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
@@ -705,7 +709,7 @@ E_field_guess = np.zeros((2, np.shape(x_net)[0]))
 E_field_guess[0, :] = 1.1 * phi_se_SCL_net[0]
 E_field_guess[1, :] = 0.01
 
-E_plot      = np.zeros(np.shape(x_net_plot)[0])
+der_plot      = np.zeros(np.shape(x_net_plot)[0])
 phi_plot    = np.zeros(np.shape(x_net_plot)[0])
 ne_plot     = np.zeros(np.shape(x_net_plot)[0])
 ni_plot     = np.zeros(np.shape(x_net_plot)[0])
@@ -731,16 +735,45 @@ for i in range(Tw_SCL_net_steps):
     SCL_dist = np.zeros((5, x_net_plot_steps))
     sol = SCL_distribution_sys(x_net, E_field_guess, *args)
     phi_plot = sol.sol(x_net_plot)[0]
-    E_plot = sol.sol(x_net_plot)[1]
-    ne_plot = ne_func([phi_plot, E_plot], args)
+    der_plot = sol.sol(x_net_plot)[1]
+    ne_plot = ne_func([phi_plot, der_plot], args)
     ni_plot = ni_func(phi_plot, args)
-    nte_plot = nte_func([phi_plot, E_plot], args)
+    nte_plot = nte_func([phi_plot, der_plot], args)
     if i == SCL_dist_plot_num:
         SCL_dist_plot = SCL_dist
         break
 x_net_plot = np.concatenate((x_net_alpha_plot, x_net_plot), axis = None)
 phi_plot = np.concatenate((phi_plot_alpha, phi_plot), axis = None)
-plt.plot(x_net_plot, phi_plot)
-plt.show()
-plt.plot(x_net_alpha_plot, phi_plot_alpha)
-plt.show()
+der_plot = np.concatenate((der_plot_alpha, der_plot), axis = None)
+ne_plot = np.concatenate((ne_plot_alpha, ne_plot), axis = None)
+ni_plot = np.concatenate((ni_plot_alpha, ni_plot), axis = None)
+nte_plot = np.concatenate((nte_plot_alpha, nte_plot), axis = None)
+plt.plot(x_net_plot, phi_plot, label = r"$\varphi$")
+plt.plot(x_net_plot, der_plot, label = r"$\varphi^,$")
+plt.plot(x_net_plot, ne_plot, label = r"$n_e$")
+plt.plot(x_net_plot, ni_plot, label = r"$n_i$")
+plt.plot(x_net_plot, nte_plot, label = r"$n_{te}$")
+plt.legend()
+plt.title(r"$n_i^{se} = %.1f\cdot10^{%d}$ см$^{-3}$   "
+    r"$T_e = %0.f$ эВ   "
+    r"$T_w = %0.f$ К"
+    % (nse / 10 ** floor(log10(nse)), floor(log10(nse)), Te * erg_to_eV, TK(Tw_SCL_net[SCL_dist_plot_num])),
+    y = -0.25)
+plt.xlabel(r"x", fontdict = dict(fontsize = 18))
+plt.savefig("data/plot_parameters-Tw/plot_Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))
+
+fig = plt.figure(figsize=(8, 6), dpi=300)
+plt.plot(x_net_alpha_plot, phi_plot_alpha, label = r"$\varphi$")
+plt.plot(x_net_alpha_plot, der_plot_alpha, label = r"$\varphi^,$")
+plt.plot(x_net_alpha_plot, ne_plot_alpha, label = r"$n_e$")
+plt.plot(x_net_alpha_plot, ni_plot_alpha, label = r"$n_i$")
+plt.plot(x_net_alpha_plot, nte_plot_alpha, label = r"$n_{te}$")
+plt.legend()
+plt.grid()
+plt.title(r"$n_i^{se} = %.1f\cdot10^{%d}$ см$^{-3}$   "
+    r"$T_e = %0.f$ эВ   "
+    r"$T_w = %0.f$ К"
+    % (nse / 10 ** floor(log10(nse)), floor(log10(nse)), Te * erg_to_eV, TK(Tw_SCL_net[SCL_dist_plot_num])),
+    y = -0.25)
+plt.xlabel(r"x", fontdict = dict(fontsize = 18))
+plt.savefig("data/plot_parameters-Tw/plot_alpha_Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))
