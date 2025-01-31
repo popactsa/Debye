@@ -13,6 +13,7 @@ params = {"text.latex.preamble": r"\usepackage{icomma}"}
 # locale.setlocale(locale.LC_NUMERIC, "ru_RU")
 plt.rcParams["axes.formatter.use_locale"] = True
 plt.rcParams.update(params)
+plt.rcParams["figure.autolayout"] = True
 
 # Plot hints styles
 props = dict(boxstyle="square", facecolor="white")
@@ -486,7 +487,7 @@ plt.title(r"$n_i^{se} = %.1f\cdot10^{%d}$ см$^{-3}$   "
     r"$T_e = %0.f$ эВ   "
     r"$T_{trans} = %0.f$ К"
     % (nse / 10 ** floor(log10(nse)), floor(log10(nse)), Te * erg_to_eV, TK(Tw_trans)),
-	y = -0.2)
+	y = -0.25)
 plt.xlabel(r"$T_w$(K)", fontdict = dict(fontsize = 18))
 plt.savefig("data/plot_parameters-Tw/Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))
 plt.show()
