@@ -623,10 +623,10 @@ def ne_func(E_field, args):
     E = E_field[1]
     res = np.zeros(np.shape(E_field)[1])
     for i in range(np.shape(res)[0]):
-        if E[i] < 0:
-            res[i] = ne_se * np.exp(phi[i] - phi_se) * erfc(np.sqrt(phi[i] - (V_vc + phi_se)))
-        else:
-            res[i] = ne_se * np.exp(phi[i] - phi_se)
+        # if E[i] < 0:
+        #     res[i] = ne_se * np.exp(phi[i] - phi_se) * erfc(np.sqrt(phi[i] - (V_vc + phi_se)))
+        # else:
+        res[i] = ne_se * np.exp(phi[i] - phi_se)
     return res
 
 def ni_func(phi, args):
@@ -645,25 +645,25 @@ def nte_func(E_field, args):
     E = E_field[1]
     res = np.zeros(np.shape(E_field)[1])
     for i in range(np.shape(res)[0]):
-        if E[i] < 0:
+        # if E[i] < 0:
+        #     res[i] = (
+        #         nte_w
+        #         * np.exp((phi[i] - (V_f + phi_se)) / Tw) 
+        #         * (1 + erf(np.sqrt((phi[i] - (V_vc + phi_se)) / Tw)))
+        #     )
+        # else:
+        if ((phi[i] - (V_vc + phi_se)) / Tw) < 100:
             res[i] = (
                 nte_w
                 * np.exp((phi[i] - (V_f + phi_se)) / Tw) 
-                * (1 + erf(np.sqrt((phi[i] - (V_vc + phi_se)) / Tw)))
+                * erfc(np.sqrt((phi[i] - (V_vc + phi_se)) / Tw))
             )
         else:
-            if ((phi[i] - (V_vc + phi_se)) / Tw) < 100:
-                res[i] = (
-                    nte_w
-                    * np.exp((phi[i] - (V_f + phi_se)) / Tw) 
-                    * erfc(np.sqrt((phi[i] - (V_vc + phi_se)) / Tw))
-                )
-            else:
-                res[i] = (
-                    nte_w
-                    * erfcxexp_limit_resolve((phi[i] - (V_vc + phi_se)) / Tw)
-                    * np.exp((V_vc - V_f) / Tw)
-                )
+            res[i] = (
+                nte_w
+                * erfcxexp_limit_resolve((phi[i] - (V_vc + phi_se)) / Tw)
+                * np.exp((V_vc - V_f) / Tw)
+            )
     return res
 
 def pois_eq(x, E_field, args):
@@ -698,12 +698,12 @@ def SCL_distribution_sys(x_net, E_field_guess, *args):
     # print("sol message : ".format(msg))
     return sol
 x_net_max = 20
-x_net_steps = 101
-x_net = np.linspace(x_net_alpha_plot[1], x_net_max, x_net_steps)
+x_net_steps = 201
+x_net = np.linspace(x_net_alpha_plot[-1], x_net_max, x_net_steps)
 
 x_net_plot_max = 10
-x_net_plot_steps = 201
-x_net_plot = np.linspace(x_net_alpha_plot[1], x_net_plot_max, x_net_plot_steps)
+x_net_plot_steps = 401
+x_net_plot = np.linspace(x_net_alpha_plot[-1], x_net_plot_max, x_net_plot_steps)
 
 E_field_guess = np.zeros((2, np.shape(x_net)[0]))
 E_field_guess[0, :] = 1.1 * phi_se_SCL_net[0]
