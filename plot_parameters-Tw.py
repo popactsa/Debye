@@ -1,11 +1,14 @@
 import numpy as np
 import warnings
-warnings.filterwarnings('ignore', 'The iteration is not making good progress')
-warnings.filterwarnings('ignore', 'invalid value encountered in sqrt')
 import matplotlib.pyplot as plt
 from scipy.special import erfc, erf
+from scipy.integrate import solve_bvp, quad
 from math import floor, log10, ceil
 from scipy.optimize import fsolve
+
+# Ignore some warnings
+warnings.filterwarnings('ignore', 'The iteration is not making good progress')
+warnings.filterwarnings('ignore', 'invalid value encountered in sqrt')
 
 # Plots settings
 plt.rcParams.update({"font.size": 13})
@@ -160,17 +163,17 @@ for i in range(len(sol_trans_init_guesses)):
 if is_trans_sol_found == False:
     raise NameError('Appropriate sol_trans not found. Add more initial guesses')
 else:
-	Tw_trans, V_f_trans, ne_se_trans, phi_se_trans = sol_trans
-	print(
-		"Transition at : Tw = ",
-		f"{TK(Tw_trans):.0f}\n",
-		"\tV_f_trans = ",
-		V_f_trans,
-		"\n\tphi_se_trans = ",
-		phi_se_trans,
-		"\n\tne_se_trans = ",
-		ne_se_trans,
-	)
+    Tw_trans, V_f_trans, ne_se_trans, phi_se_trans = sol_trans
+    print(
+        "Transition at : Tw = ",
+        f"{TK(Tw_trans):.0f}\n",
+        "\tV_f_trans = ",
+        V_f_trans,
+        "\n\tphi_se_trans = ",
+        phi_se_trans,
+        "\n\tne_se_trans = ",
+        ne_se_trans,
+    )
  # System for classic regime
 def j_wall_classic(y, args):
     derw, V_f, ne_se, phi_se = y
@@ -440,7 +443,7 @@ for i in range(Tw_SCL_net_steps):
 Tw_all_net = np.concatenate((Tw_classic_net, Tw_SCL_net[1:]))
 Tw_all_net_plot = np.zeros(np.shape(Tw_all_net)[0])
 for i in range(len(Tw_all_net)):
-	Tw_all_net_plot[i] = TK(Tw_all_net[i])
+    Tw_all_net_plot[i] = TK(Tw_all_net[i])
 
 V_f_all_net = np.concatenate((V_f_classic_net, V_f_SCL_net[1:]))
 V_vc_all_net = np.concatenate((V_f_classic_net, V_vc_SCL_net[1:]))
@@ -458,7 +461,7 @@ plt.plot(Tw_all_net_plot[Tw_classic_net_steps:], V_vc_SCL_net[1:], lw=2, label=r
 
 plt.text(
     # (min(Tw_all_net_plot) + TK(Tw_trans)) / 2 - 300,
-	2200,
+    2200,
     (ne_se_all_net[0] + phi_se_all_net[0])/2,
     r"Классический"
     "\n"
@@ -469,7 +472,7 @@ plt.text(
 
 plt.text(
     # TK(Tw_trans) + 100,
-	3100,
+    3100,
     (ne_se_all_net[0] + phi_se_all_net[0])/2,
     r"Режим экранирования"
     "\n"
@@ -487,7 +490,257 @@ plt.title(r"$n_i^{se} = %.1f\cdot10^{%d}$ см$^{-3}$   "
     r"$T_e = %0.f$ эВ   "
     r"$T_{trans} = %0.f$ К"
     % (nse / 10 ** floor(log10(nse)), floor(log10(nse)), Te * erg_to_eV, TK(Tw_trans)),
-	y = -0.25)
+    y = -0.25)
 plt.xlabel(r"$T_w$(K)", fontdict = dict(fontsize = 18))
 plt.savefig("data/plot_parameters-Tw/Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))
+
+# plt.show()
+
+# Plotting parameters distribution in SCL regime
+
+def ne_func_alpha(E_field, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    phi = E_field[0]
+    E = E_field[1]
+    res = np.zeros(np.shape(E_field)[1])
+    for i in range(np.shape(res)[0]):
+        res[i] = ne_se * np.exp(phi[i] - phi_se) * erfc(np.sqrt(phi[i] - (V_vc + phi_se)))
+    return res
+
+def ni_func_alpha(phi, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    res = np.zeros(np.shape(phi))
+    for i in range(np.shape(res)[0]):
+        if (phi[i] > 0):
+            res[i] = 0
+        else:
+            res[i] = 1 / np.sqrt(1 - 2 * (phi[i] - phi_se) / upsilon_0**2)
+    return res
+    
+def nte_func_alpha(E_field, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    phi = E_field[0]
+    E = E_field[1]
+    res = np.zeros(np.shape(E_field)[1])
+    for i in range(np.shape(res)[0]):
+        res[i] = (
+            nte_w
+            * np.exp((phi[i] - (V_f + phi_se)) / Tw) 
+            * (1 + erf(np.sqrt((phi[i] - (V_vc + phi_se)) / Tw)))
+        )
+    return res
+
+def pois_eq_alpha(x, E_field, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    phi = E_field[0]
+    E = E_field[1]
+    return [
+        E_field[1],
+        -(
+            ni_func_alpha(E_field[0], args)
+            - ne_func_alpha(E_field, args)
+            - nte_func_alpha(E_field, args)
+        ),
+    ]
+
+def pois_bc_alpha(E_field_a, E_field_b, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    return np.array([
+        E_field_b[0] - (V_vc + phi_se),
+        E_field_b[1]
+    ])
+
+def SCL_distribution_alpha_sys(x_net, E_field_guess, *args):
+    args_sol = [*args]
+    sol = solve_bvp(
+            lambda x_net, E_field_guess: pois_eq_alpha(x_net, E_field_guess, args_sol),
+            lambda x_net, E_field_guess: pois_bc_alpha(x_net, E_field_guess, args_sol),
+            x_net,
+            E_field_guess
+            )
+    # msg = sol.message
+    # print("sol message : ".format(msg))
+    return sol
+
+x_net_alpha_max = 0.01
+x_net_alpha_steps = 101
+x_net_alpha = np.linspace(0, x_net_alpha_max, x_net_alpha_steps)
+
+x_net_alpha_plot_max = 0.01
+x_net_alpha_plot_steps = 201
+x_net_alpha_plot = np.linspace(0, x_net_alpha_plot_max, x_net_alpha_plot_steps)
+
+E_field_alpha_guess = np.full((2, np.shape(x_net_alpha)[0]), phi_se_trans + V_f_trans + Tw_trans)
+SCL_dist_plot_num = 10
+
+E_plot_alpha      = np.zeros(np.shape(x_net_alpha_plot)[0])
+phi_plot_alpha    = np.zeros(np.shape(x_net_alpha_plot)[0])
+ne_plot_alpha     = np.zeros(np.shape(x_net_alpha_plot)[0])
+ni_plot_alpha     = np.zeros(np.shape(x_net_alpha_plot)[0])
+nte_plot_alpha    = np.zeros(np.shape(x_net_alpha_plot)[0])
+for i in range(Tw_SCL_net_steps):
+    args = (
+            derw_SCL_net[i],
+            V_f_SCL_net[i],
+            ne_se_SCL_net[i],
+            phi_se_SCL_net[i],
+            V_vc_SCL_net[i],
+            Tw_SCL_net[i], 
+            nte_w_func(derw_SCL_net[i], Tw_SCL_net[i]),
+            upsilon_0_func(phi_se_SCL_net[i])
+            )
+    y = [
+        derw_SCL_net[i],
+        ne_se_SCL_net[i],
+        V_f_SCL_net[i],
+        phi_se_SCL_net[i],
+        V_vc_SCL_net[i]
+    ]
+    sol = SCL_distribution_alpha_sys(x_net_alpha, E_field_alpha_guess, *args)
+    phi_plot_alpha = sol.sol(x_net_alpha_plot)[0]
+    E_plot_alpha = sol.sol(x_net_alpha_plot)[1]
+    ne_plot_alpha = ne_func_alpha([phi_plot_alpha, E_plot_alpha], args)
+    ni_plot_alpha = ni_func_alpha(phi_plot_alpha, args)
+    nte_plot_alpha = nte_func_alpha([phi_plot_alpha, E_plot_alpha], args)
+    if i == SCL_dist_plot_num:
+        break
+
+plt.clf()
+plt.grid()
+n_alpha_wall = np.searchsorted(phi_plot_alpha, V_f_SCL_net[SCL_dist_plot_num] + phi_se_SCL_net[SCL_dist_plot_num])
+n_alpha_wall = 0
+while (phi_plot_alpha[n_alpha_wall] > V_f_SCL_net[SCL_dist_plot_num] + phi_se_SCL_net[SCL_dist_plot_num]): n_alpha_wall += 1
+x_net_alpha_plot = np.linspace(0, x_net_alpha_plot_max - x_net_alpha_plot[n_alpha_wall], x_net_alpha_plot_steps - n_alpha_wall)
+phi_plot_alpha = phi_plot_alpha[n_alpha_wall:]
+
+def ne_func(E_field, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    phi = E_field[0]
+    E = E_field[1]
+    res = np.zeros(np.shape(E_field)[1])
+    for i in range(np.shape(res)[0]):
+        if E[i] < 0:
+            res[i] = ne_se * np.exp(phi[i] - phi_se) * erfc(np.sqrt(phi[i] - (V_vc + phi_se)))
+        else:
+            res[i] = ne_se * np.exp(phi[i] - phi_se)
+    return res
+
+def ni_func(phi, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    res = np.zeros(np.shape(phi))
+    for i in range(np.shape(res)[0]):
+        if (phi[i] > 0):
+            res[i] = 0
+        else:
+            res[i] = 1 / np.sqrt(1 - 2 * (phi[i] - phi_se) / upsilon_0**2)
+    return res
+    
+def nte_func(E_field, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    phi = E_field[0]
+    E = E_field[1]
+    res = np.zeros(np.shape(E_field)[1])
+    for i in range(np.shape(res)[0]):
+        if E[i] < 0:
+            res[i] = (
+                nte_w
+                * np.exp((phi[i] - (V_f + phi_se)) / Tw) 
+                * (1 + erf(np.sqrt((phi[i] - (V_vc + phi_se)) / Tw)))
+            )
+        else:
+            if ((phi[i] - (V_vc + phi_se)) / Tw) < 100:
+                res[i] = (
+                    nte_w
+                    * np.exp((phi[i] - (V_f + phi_se)) / Tw) 
+                    * erfc(np.sqrt((phi[i] - (V_vc + phi_se)) / Tw))
+                )
+            else:
+                res[i] = (
+                    nte_w
+                    * erfcxexp_limit_resolve((phi[i] - (V_vc + phi_se)) / Tw)
+                    * np.exp((V_vc - V_f) / Tw)
+                )
+    return res
+
+def pois_eq(x, E_field, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    phi = E_field[0]
+    E = E_field[1]
+    return [
+        E_field[1],
+        -(
+            ni_func(E_field[0], args)
+            - ne_func(E_field, args)
+            - nte_func(E_field, args)
+        ),
+    ]
+
+def pois_bc(E_field_a, E_field_b, args):
+    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    return np.array([
+        E_field_b[1],
+        E_field_a[0] - (phi_se + V_f)
+    ])
+
+def SCL_distribution_sys(x_net, E_field_guess, *args):
+    args_sol = [*args]
+    sol = solve_bvp(
+            lambda x_net, E_field_guess: pois_eq(x_net, E_field_guess, args_sol),
+            lambda x_net, E_field_guess: pois_bc(x_net, E_field_guess, args_sol),
+            x_net,
+            E_field_guess
+            )
+    # msg = sol.message
+    # print("sol message : ".format(msg))
+    return sol
+x_net_max = 20
+x_net_steps = 101
+x_net = np.linspace(x_net_alpha_plot[1], x_net_max, x_net_steps)
+
+x_net_plot_max = 10
+x_net_plot_steps = 201
+x_net_plot = np.linspace(x_net_alpha_plot[1], x_net_plot_max, x_net_plot_steps)
+
+E_field_guess = np.zeros((2, np.shape(x_net)[0]))
+E_field_guess[0, :] = 1.1 * phi_se_SCL_net[0]
+E_field_guess[1, :] = 0.01
+
+E_plot      = np.zeros(np.shape(x_net_plot)[0])
+phi_plot    = np.zeros(np.shape(x_net_plot)[0])
+ne_plot     = np.zeros(np.shape(x_net_plot)[0])
+ni_plot     = np.zeros(np.shape(x_net_plot)[0])
+nte_plot    = np.zeros(np.shape(x_net_plot)[0])
+for i in range(Tw_SCL_net_steps):
+    args = (
+            derw_SCL_net[i],
+            V_f_SCL_net[i],
+            ne_se_SCL_net[i],
+            phi_se_SCL_net[i],
+            V_vc_SCL_net[i],
+            Tw_SCL_net[i], 
+            nte_w_func(derw_SCL_net[i], Tw_SCL_net[i]),
+            upsilon_0_func(phi_se_SCL_net[i])
+            )
+    y = [
+        derw_SCL_net[i],
+        ne_se_SCL_net[i],
+        V_f_SCL_net[i],
+        phi_se_SCL_net[i],
+        V_vc_SCL_net[i]
+    ]
+    SCL_dist = np.zeros((5, x_net_plot_steps))
+    sol = SCL_distribution_sys(x_net, E_field_guess, *args)
+    phi_plot = sol.sol(x_net_plot)[0]
+    E_plot = sol.sol(x_net_plot)[1]
+    ne_plot = ne_func([phi_plot, E_plot], args)
+    ni_plot = ni_func(phi_plot, args)
+    nte_plot = nte_func([phi_plot, E_plot], args)
+    if i == SCL_dist_plot_num:
+        SCL_dist_plot = SCL_dist
+        break
+x_net_plot = np.concatenate((x_net_alpha_plot, x_net_plot), axis = None)
+phi_plot = np.concatenate((phi_plot_alpha, phi_plot), axis = None)
+plt.plot(x_net_plot, phi_plot)
+plt.show()
+plt.plot(x_net_alpha_plot, phi_plot_alpha)
 plt.show()
