@@ -683,7 +683,7 @@ def pois_bc(E_field_a, E_field_b, args):
     derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
     return np.array([
         E_field_b[1],
-        E_field_a[0] - (phi_se + V_f)
+        E_field_a[0] - (phi_se + V_vc)
     ])
 
 def SCL_distribution_sys(x_net, E_field_guess, *args):

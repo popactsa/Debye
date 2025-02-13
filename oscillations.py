@@ -10,7 +10,7 @@ import copy
 import matplotlib.pyplot as plt
 from math import floor, log10, ceil
 from scipy import special, optimize
-from scipy.integrate import solve_bvp, quad
+from scipy.integrate import solve_bvp, quad, ode
 from scipy.interpolate import make_interp_spline
 
 # Set to German locale to get comma decimal separater
@@ -741,7 +741,26 @@ plt.legend(ncols=2)
 # In[87]:
 
 
-from scipy.integrate import ode
+def div_diff(x, y):
+    result = 0.
+    for i in range(np.shape(x)[0]):
+        div = 1.
+        for j in range(np.shape(x)[0]):
+            if (j != i): div *= x[i] - x[j]
+        result += y[i] / div
+    return result
+
+def Newton_interpolation(x, y_base, x_base):
+    n = np.shape(x_base)[0]
+    result = np.full_like(x, 0)
+    for i in range(np.shape(x)[0]):
+        for j in range(np.shape(x_base)[0]):
+            temp = div_diff(x_base[:j], y_base[:j])
+            if j > 0:
+                for k in range(j - 1):
+                    temp *= x[i] - x_base[k]
+            result[i] += temp
+    return result
 
 ntotal = 21
 L = 5
