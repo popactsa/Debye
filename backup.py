@@ -7,7 +7,7 @@ import matplotlib.pyplot as plt
 from decimal import Decimal
 from scipy.special import erfc, erf
 from scipy.integrate import solve_bvp, quad, ode
-from scipy.interpolate import make_interp_spline, interp1d
+from scipy.interpolate import make_interp_spline
 from math import floor, log10, ceil
 from scipy.optimize import fsolve
 from scipy.differentiate import derivative
@@ -48,10 +48,8 @@ sigma   = 4.54 * eV_to_erg # Stefan-Boltzmann constant
 # Tungsten properties at T = 1000 K
 phiout  = 4.54 * eV_to_erg # Pa6oma
 rho = 19.07 # Density
-Cp  = 147.7 * 1.0e4 / K_to_erg # Isobaric heat capacity
-kappa = 116.6 * 1.0e5 / K_to_erg  # Thermal diffusivity
-# Cp  = 180 * 1.0e4 # Isobaric heat capacity
-# kappa = 100 * 1.0e5  # Thermal diffusivity
+Cp  = 147.7 * 1.0e4 # Isobaric heat capacity
+kappa = 116.6 * 1.0e5  # Thermal diffusivity
 
 # Plasma properties
 nse = 1.0e13 # plasma density
@@ -70,18 +68,24 @@ TK = lambda T : T * Te * erg_to_K
 TD = lambda T : T / Te / erg_to_K
 
 # Problem parameters
-L = 1.2e-1 # Thickness of a sample, sm
+L = 5.0 # Thickness of a sample, sm
 T0 = TD(1000) # Thermostat and initial temperature
 C = kappa / (rho * Cp)
 # D = -T0 * kappa / (nse * cs * Te * L)
 
-t_net_max = 0.35e-2
-print('t_net_max : %.2E s' % Decimal(t_net_max))
-t_net_steps = 35001
+# periods_to_plot = ceil(1.0e6)
+# t_net_max = (
+#         periods_to_plot # in periods of omega_p
+#         # * 2 * np.pi / omega_p
+#         )
+t_net_max = 2.5e-3# / tau_p
+print('t_net_max : %.2E s' % Decimal(t_net_max * tau_p))
+t_net_steps = 101 
 # exit()
 print('t_net_steps : %d' % t_net_steps)
 t_net = np.linspace(0, t_net_max, t_net_steps)
 dt = t_net[1] - t_net[0]
+
 
 # Useful calculating functions
 def nte_w_func(derw, Tw):
@@ -115,8 +119,8 @@ def erfcxexp_limit_resolve(x):
 # Solving system for transition temperature
 
 def Poisson_integrated_classic_trans(phi, y, args):
-    Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
+    V_f, ne_se = y
+    Tw, nte_w, upsilon_0, phi_se = args
     return (
         upsilon_0 * np.sqrt(upsilon_0**2 - 2 * (phi - phi_se))
         + ne_se * np.exp(phi - phi_se)
@@ -128,106 +132,90 @@ def Poisson_integrated_classic_trans(phi, y, args):
         )
     )
 
-
 def Poisson_classic_trans(y, args):
-    Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
+    V_f, ne_se = y
+    Tw, nte_w, upsilon_0, phi_se = args
     return -2.0 * (
         Poisson_integrated_classic_trans(phi_se + V_f, y, args)
         - Poisson_integrated_classic_trans(phi_se, y, args)
     )
 
-
 def quasineutrality_trans(y, args):
-    Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
+    V_f, ne_se = y
+    Tw, nte_w, upsilon_0, phi_se = args
     return 1 - nte_w * erfcxexp_limit_resolve(-V_f / Tw) - ne_se
 
 
 def j_wall_trans(y, args):
-    Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
-    vte = np.sqrt(8 * Tw * mi / np.pi / me)
-    return (
-            upsilon_0
-            + 0.25 * vte * nte_w
-            - 0.25 * vth * ne_se * np.exp(V_f)
-            )
-    # return V_f - np.log(
-    #     4 * upsilon_0 / (ne_se * np.sqrt(8 * mi / (np.pi * me)))
-    #     + nte_w / ne_se * np.sqrt(Tw)
-    # )
-
-
+    V_f, ne_se = y
+    Tw, nte_w, upsilon_0, phi_se = args
+    return V_f - np.log(
+        4 * upsilon_0 / (ne_se * np.sqrt(8 * mi / (np.pi * me)))
+        + nte_w / ne_se * np.sqrt(Tw)
+    )
 
 def sys_trans(y, *args):
-    Tw, V_f, ne_se = y
-    phi_se, = args
-    args1 = [nte_w_func(0, Tw), upsilon_0_func(phi_se), phi_se]
+    V_f, ne_se = y
+    Tw, phi_se, upsilon_0 = args
+    args1 = [Tw, nte_w_func(0, Tw), upsilon_0, phi_se]
     return [
-        # Bohm_criterion_trans(y, args1),
-        Poisson_classic_trans(y, args1),
         j_wall_trans(y, args1),
-        quasineutrality_trans(y, args1),
+        quasineutrality_trans(y, args1)
     ]
  
 sol_trans_init_guesses = [
-    [TD(3165), -1.1866, 0.892],
-    [TD(2900), -1.1866, 0.892],
-    [TD(2750), -1.15, 0.9],
-    [TD(3200), -1.25, 0.86]
+    [-2.7, 0.995],
+    [-1.1866, 0.892],
+    [-1.1866, 0.892],
+    [-1.15, 0.9],
+    [-1.25, 0.86]
 ]
 
 phi_se = -0.5
 upsilon_0 = upsilon_0_func(phi_se)
-
-properties_trans = np.zeros(5)
-
-sw_trans = False
-args_trans = (phi_se, )
-for j in range(len(sol_trans_init_guesses)):
-    sol_trans = fsolve(sys_trans, sol_trans_init_guesses[j], args=args_trans)
-    if (np.isclose(sys_trans(sol_trans, *args_trans), np.zeros(len(sol_trans))) == np.ones(len(sol_trans), dtype = bool)).all():
-        sw_trans = True
-        break
+def V_f_trans_func(Tw):
+    args_trans = (Tw, phi_se, upsilon_0)
+    sw_trans = False
+    for j in range(len(sol_trans_init_guesses)):
+        sol_trans = fsolve(sys_trans, sol_trans_init_guesses[j], args=args_trans)
+        if (np.isclose(sys_trans(sol_trans, *args_trans), np.zeros(len(sol_trans))) == np.ones(len(sol_trans), dtype = bool)).all():
+            sw_trans = True
+            break
+        # else:
+            # print(sys_trans(sol_trans, *args_trans))
+    if sw_trans == False:
+        raise NameError('Appropriate sol_trans not found. Add more initial guesses')
     else:
-        print(sys_trans(sol_trans, *args_trans))
-if sw_trans == False:
-    raise NameError('Appropriate sol_trans not found. Add more initial guesses')
-else:
-    properties_trans = 0.0, sol_trans[1], sol_trans[2], sol_trans[1], sol_trans[0]
+        V_f_trans, ne_se_trans = sol_trans
+    return V_f_trans, ne_se_trans
 
-def j_func(y, Tw, Tw_trans):
-    derw, V_f, ne_se, V_vc = y
-    vte = np.sqrt(8 * Tw * mi / np.pi / me)
-    if (Tw > Tw_trans):
-        return (
-            1.0
-            - 0.25 * vth * ne_se * np.exp(V_vc)
-            + 0.25 * vte * nte_w_func(derw, Tw) * np.exp((V_vc - V_f)/Tw)
-        )
-    else:
-        return (
-            1.0
-            - 0.25 * vth * ne_se * np.exp(V_f)
-            + 0.25 * vte * nte_w_func(derw, Tw)
-        )
+# 
 
+# def j_func(y, Tw, phi):
+#     derw, V_f, ne_se, V_vc = y
+#     return (
+#         1
+#         - 0.25 * vth * ne_se * np.exp(V_vc)
+#         + 0.25 * vth * np.sqrt(Tw) * nte_w * np.exp((V_f - V_vc)/Tw)
+#     )
+#
 # V_func = lambda j : np.log((j_func - upsilon_0) * 4.0 / vth / ne_se)
 
 # heat fluxes
 
-def q_ion_func(y, is_MW = False):
-    derw, V_f, ne_se, V_vc, Tw, Tw_trans = y
+def q_ion_func(y, V_f_trans, phi_se, Tw, is_MW = False):
+    derw, V_f, ne_se, V_vc = y
     if (phi_se > 0) : return 0.0
+    vteth = np.sqrt(8 * Tw * mi / (np.pi * me))
     q_net = upsilon_0 * (upsilon_0**2 / 2 - V_vc)
     if (is_MW == True) :
         q_net = q_net * nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
     return q_net
 
-def q_e_func(y, is_MW = False):
-    derw, V_f, ne_se, V_vc, Tw, Tw_trans = y
-    if (Tw < Tw_trans):
+def q_e_func(y, V_f_trans, phi_se, Tw, is_MW = False):
+    derw, V_f, ne_se, V_vc = y
+    vteth = np.sqrt(8 * Tw * mi / (np.pi * me))
+    if (V_f <= V_f_trans):
         q_net = (
             0.25 * ne_se * vth * 2 * np.exp(V_f)
         )
@@ -241,26 +229,20 @@ def q_e_func(y, is_MW = False):
         q_net = q_net * nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
     return q_net
 
-def q_func(y, is_MW = False): 
+def q_func(y, V_f_trans, phi_se, Tw, is_MW = False): 
     return (
-            q_e_func(y, is_MW)
-            + q_ion_func(y, is_MW)
+            q_e_func(y, V_f_trans, phi_se, Tw, is_MW)
+            + q_ion_func(y, V_f_trans, phi_se, Tw, is_MW)
         )
 
 # System for classic regime
 def j_wall_classic(y, args):
     derw, V_f, ne_se = y
     Tw, nte_w, upsilon_0, phi_se = args
-    vte = np.sqrt(8 * Tw * mi / np.pi / me)
-    return (
-            upsilon_0
-            + 0.25 * vte * nte_w
-            - 0.25 * vth * ne_se * np.exp(V_f)
-            )
-    # return V_f - np.log(
-    #     4 * upsilon_0 / (ne_se * np.sqrt(8 * mi / (np.pi * me)))
-    #     + nte_w / ne_se * np.sqrt(Tw)
-    # )
+    return V_f - np.log(
+        4 * upsilon_0 / (ne_se * np.sqrt(8 * mi / (np.pi * me)))
+        + nte_w / ne_se * np.sqrt(Tw)
+    )
 
 def Bohm_criterion_classic(y, args):
     derw, V_f, ne_se = y
@@ -293,7 +275,6 @@ def Poisson_integrated_classic(phi, y, args):
             erfcxexp_limit_resolve((phi - (V_f + phi_se)) / Tw)
             + 2 / np.sqrt(np.pi) * np.sqrt((phi - (phi_se + V_f)) / Tw)
         )
-
     )
 
 
@@ -441,12 +422,10 @@ def u_border(x_point, u, x):
 
 def solve_debye(Tw):
     result = np.ndarray(4, dtype = float)
-    derw_trans, V_f_trans, ne_se_trans, V_vc_trans, Tw_trans = properties_trans;
     args = (phi_se, Tw)
-    if Tw < Tw_trans:
-        line = 2 - Tw / T0 
-        # sol = fsolve(sys_classic, [1.0 * line, -2.5 + 1.0  * ((Tw - T0) / (Tw_trans - T0)) , 1.0 - 0.1 * line], args=args)
-        sol = fsolve(sys_classic, [1.0, -2.5, 1.0], args=args)
+    V_f_trans, ne_se_trans = V_f_trans_func(Tw)
+    if V_f < V_f_trans:
+        sol = fsolve(sys_classic, [1.0, -3.0, 0.95], args=args)
         result = [sol[0], sol[1], sol[2], sol[1]]
     else:
         j = 0
@@ -460,10 +439,10 @@ def solve_debye(Tw):
             sol = fsolve(
                 sys_SCL,
                 [
-                    0.0 - 0.1 * j,
-                    V_f_trans + 0.0001 * j,
+                    0 - 0.1 * j,  # 0.001
+                    V_f_trans + 0.00001 * j,
                     ne_se_trans,
-                    V_vc_trans,
+                    V_f_trans,
                 ],
                 args=args,
             )
@@ -478,6 +457,10 @@ Tw = T0
 x_net_main_steps = 101
 ntotal = x_net_main_steps + 4
 dx = L / x_net_main_steps
+# print("dt : ", dt)
+# print("dx : ", dx)
+# print("dt * C / dx^2 : ", dt * C / dx**2)
+# exit()
 
 dx12   = 12.*dx       # extra metric factor
 d2x12  = 12.*dx**2    # extra metric factor
@@ -492,35 +475,38 @@ def rhs(t, u):
     u[1] = u_border(-0.5, 
                     [T0, u[2], u[3], u[4], u[5]],
                     [0.0, 0.5, 1.5, 2.5, 3.5]
-    )
+    ) 
     u[0] = u_border(-1.5,
                     [u[1], T0, u[2], u[3], u[4]], 
                     [-0.5, 0.0, 0.5, 1.5, 2.5]
-    )
-    derw_trans, V_f_trans, ne_se_trans, V_vc_trans, Tw_trans = properties_trans;
-    Tw = u_border(0.0, # calculate for the next step
-           [u[-7], u[-6], u[-5], u[-4], u[-3]], 
-           [-4.5, -3.5, -2.5, -1.5, -0.5]
     ) 
-    grad_dx_right = q_func([derw, V_f, ne_se, V_vc, Tw, Tw_trans]) * ((nse * cs) / kappa) * dx
-    # grad_dx_right = (1.0e12 / (kappa * Te)) * dx
+    global derw, V_f, ne_se, V_vc, Tw
+    V_f_trans = V_f_trans_func(Tw)[0]
+    grad_dx_right = 1.0 * (4 * q_func([derw, V_f, ne_se, V_vc], V_f_trans, phi_se, Tw)) * ((nse * cs) / kappa) * dx
+    print(((nse * cs) / kappa) * dx)
     u[-2] = (
         -24.0 * grad_dx_right
         + 17.0 * u[-3]
         + 9.0 * u[-4]
         - 5.0 * u[-5]
         + 1.0 * u[-6]
-    ) / 22.0
+            ) / 22.0
     u[-1] = (
         -24.0 * grad_dx_right
         + 27.0 * u[-2]
         - 27.0 * u[-3]
         + 1.0 * u[-4]
-    )
+            )
     print(TK(u[-3:]))
     for i in range(2, ntotal - 2):
         d2udx2 = (-u[i-2] + 16.*u[i-1] - 30.*u[i] + 16.*u[i+1] - u[i+2]) / d2x12
-        dudt[i] = C * d2udx2
+        dudt[i] = C* d2udx2
+
+    Tw = u_border(0.0, # calculate for the next step
+           [u[-7], u[-6], u[-5], u[-4], u[-3]], 
+           [-4.5, -3.5, -2.5, -1.5, -0.5]
+    ) 
+    derw, V_f, ne_se, V_vc = solve_debye(Tw)
     print("dudt * dt : ", dudt[-5:] * dt)
     print(":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::")
 
@@ -539,223 +525,52 @@ def jac(t, u):
         dFdu[i, i]   = f30d2x12
         dFdu[i, i+1] = f16d2x12
         dFdu[i, i+2] = -f1d2x12
+    print("called")
     return dFdu  
 
 u0 = np.full((ntotal), T0)
 result = np.ndarray((t_net_steps, ntotal))
 result[0, :] = u0[:]
 
-r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
+r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e9)
 r.set_initial_value(u0, 0)
 index = 1
 tstep = t_net_steps - 1
 V_vc_log = np.zeros(tstep)
 q_log = np.zeros(tstep)
-j_log = np.zeros(tstep)
-
-omega = floor(1 * t_net_max / 1.0e-5)
-phi_func = lambda t, V_f : -0.6 * V_f * np.sin(2*np.pi * t * omega / t_net_max) # approximately 3 periods in elm time
-result_w = np.zeros(t_net_steps)
-result_w[0] = T0
 while r.successful() and index < t_net_steps and index <= tstep:
     r.integrate(r.t + dt)
     result[index, :] = r.y
-
-    Tw = u_border(0.0, # calculate for the next step
-           [result[index, -7], result[index, -6], result[index, -5], result[index, -4], result[index, -3]], 
-           [-4.5, -3.5, -2.5, -1.5, -0.5]
-    ) 
-    result_w[index] = Tw
-
-    derw, V_f, ne_se, V_vc = solve_debye(Tw)
-    V_vc += phi_func(r.t, V_f)
-    V_f += phi_func(r.t, V_f)
     V_vc_log[index - 1] = V_vc
 
-    derw_trans, V_f_trans, ne_se_trans, V_vc_trans, Tw_trans = properties_trans;
-    q_log[index - 1] = q_func([derw, V_f, ne_se, V_vc, Tw, Tw_trans])
-    j_log[index - 1] = j_func([derw, V_f, ne_se, V_vc], Tw, Tw_trans)
-    print(TK(Tw))
-    print("derw : ", derw)
-    print("V_f : ", V_f)
-    print("ne_se : ", ne_se)
-    print("V_vc : ", V_vc)
-    print("-------------step : ", index, " --------------")
+    V_f_trans = V_f_trans_func(Tw)[0]
+    Tw_trans = 0.0
+    if (V_f_trans > V_f):
+        Tw_trans = Tw * 2
+    else:
+        Tw_trans = Tw / 2
+    q_log[index - 1] = q_func([derw, V_f, ne_se, V_vc], phi_se, Tw, Tw_trans)
     index += 1
+
 print("index : ", index)
 print("Tw : ", TK(result[index - 1, -3]))
 fig = plt.figure(figsize=(8, 6), dpi=300)
 
-#### non-oscilating
-
-derw, V_f, ne_se = fsolve(sys_classic, [1.0, -2.7, 0.995], args = (phi_se, T0))
-V_vc = V_f
-Tw = T0
-
-r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
-r.set_initial_value(u0, 0)
-index = 1
-tstep = t_net_steps - 1
-V_vc_0_log = np.zeros(tstep)
-q_0_log = np.zeros(tstep)
-j_0_log = np.zeros(tstep)
-
-result_0 = np.ndarray((t_net_steps, ntotal))
-result_0[0, :] = u0[:]
-result_w_0 = np.zeros(t_net_steps)
-result_w_0[0] = T0
-while r.successful() and index < t_net_steps and index <= tstep:
-    r.integrate(r.t + dt)
-    result_0[index, :] = r.y
-
-    Tw = u_border(0.0, # calculate for the next step
-           [result_0[index, -7], result_0[index, -6], result_0[index, -5], result_0[index, -4], result_0[index, -3]], 
-           [-4.5, -3.5, -2.5, -1.5, -0.5]
-    ) 
-    result_w_0[index] = Tw
-
-    derw, V_f, ne_se, V_vc = solve_debye(Tw)
-    V_vc_0_log[index - 1] = V_vc
-
-    derw_trans, V_f_trans, ne_se_trans, V_vc_trans, Tw_trans = properties_trans;
-    q_0_log[index - 1] = q_func([derw, V_f, ne_se, V_vc, Tw, Tw_trans])
-    j_0_log[index - 1] = j_func([derw, V_f, ne_se, V_vc], Tw, Tw_trans)
-    # print(TK(Tw))
-    # print("derw : ", derw)
-    # print("V_f : ", V_f)
-    # print("ne_se : ", ne_se)
-    # print("V_vc : ", V_vc)
-    # print("-------------step : ", index, " --------------")
-    index += 1
-
-msize = 1
-mstyle = "x"
-
-
-plt.plot(x_net[2:-2], TK(result[tstep, 2:-2]))
-plt.plot(x_net[2:-2], TK(result_0[tstep, 2:-2]))
-#plt.grid()
-plt.ylim(TK(T0 * 0.9), TK(max(result[tstep, 2:-2])))
-plt.xlim(x_net[2], x_net[-3])
-plt.xlabel(r"$x$, cm")
-plt.ylabel(r"$T_s$, K")
-plt.savefig("temperature_distribution_plot.png")
-plt.clf()
+# plt.plot(t_net[:tstep], phi_se_func(base, amp, omega, t_net[:tstep]))
 # plt.show()
-plt.xlim(0, t_net_max)
-plt.scatter(t_net[:tstep + 1], TK(result_w), s = msize, marker = mstyle)
-plt.plot(t_net[:tstep + 1], TK(result_w))
-plt.scatter(t_net[:tstep + 1], TK(result_w_0), s = msize, marker = mstyle)
-plt.plot(t_net[:tstep + 1], TK(result_w_0))
 
-plt.xlabel(r"$t$, s")
-plt.ylabel(r"$T_s$, K")
-interpolation_step = tstep // omega;
-modifier = 10
-
-interpolation_step *= modifier
-print(tstep // interpolation_step)
-
-Ts_average = []
-for i in range(omega // modifier):
-    Ts_average.append(TK(np.average(result_w[i * interpolation_step: (i + 1) * interpolation_step])))
-interp_t_net = dt * interpolation_step * np.arange(0.5, tstep // interpolation_step + 0.5)
-# plt.scatter(interp_t_net, Ts_average, s = msize, marker = mstyle, c = 'tab:blue', alpha = 0.3)
-plt.plot(interp_t_net, Ts_average, c = 'tab:blue', alpha = 0.5, linestyle = 'dashed')
-# #plt.grid()
-plt.savefig("temperature_plot.png")
-plt.clf()
-
-
-plt.xlabel(r"$t$, s")
-plt.ylabel(r"$T_{osc} / T_{plain}$, K")
-plt.xlim(0, t_net_max)
-T_rel = []
-for i in range(np.shape(result_w)[0]):
-    T_rel.append(result_w[i] / result_w_0[i])
-plt.scatter(t_net[:tstep + 1], T_rel, s = msize, marker = mstyle)
-plt.savefig("temperature_rel_plot.png")
-plt.clf()
-
-interpolation_step = tstep // omega;
-modifier = 1
-interpolation_step *= modifier
-print(tstep // interpolation_step)
-
-# plt.show()
-# plt.scatter(t_net[:tstep], V_vc_log, s = msize, marker = mstyle)
-# plt.scatter(t_net[:tstep], V_vc_0_log, s = msize, marker = mstyle)
-# plt.plot(t_net[:tstep], V_vc_log)
-# plt.scatter(TK(result_w[:tstep]), V_vc_log, s = msize, marker = mstyle)
-plt.plot(TK(result_w[:tstep]), V_vc_log, markersize = msize, marker = mstyle)
-# plt.scatter(TK(result_w_0[:tstep]), V_vc_0_log, s = msize, marker = mstyle)
-plt.plot(TK(result_w_0[:tstep]), V_vc_0_log, markersize = msize, marker = mstyle)
-plt.xlabel(r"$t$, s")
-plt.ylabel(r"$V_vc$")
-#plt.grid()
-plt.savefig("V_vc_plot.png")
-plt.clf()
-# plt.show()
-# plt.scatter(t_net[:tstep], q_log, s = msize, marker = mstyle)
-# plt.scatter(t_net[:tstep], q_0_log, s = msize, marker = mstyle)
-# plt.plot(t_net[:tstep], q_log, marker = mstyle, markersize = msize)
-# plt.plot(t_net[:tstep], q_0_log, marker = mstyle, markersize = msize)
-# plt.plot(t_net[:tstep], make_interp_spline(t_net[:tstep:interpolation_step], q_log[::interpolation_step], 3)(t_net[:tstep]))
-# plt.xlabel("t, s")
-plt.plot(TK(result_w[:tstep]), q_log, marker = mstyle, markersize = msize)
-plt.plot(TK(result_w_0[:tstep]), q_0_log, marker = mstyle, markersize = msize)
-
-q_average = []
-q_rel = []
-interp_T_net = []
-for i in range(omega // modifier):
-    q_average.append(np.average(q_log[i * interpolation_step: (i + 1) * interpolation_step]))
-    q_rel.append(q_average[-1] / q_0_log[i * interpolation_step + interpolation_step // 2])
-    interp_T_net.append(TK(np.average(result_w[i * interpolation_step: (i + 1) * interpolation_step])))
-# plt.scatter(interp_t_net, Ts_average, s = msize, marker = mstyle, c = 'tab:blue', alpha = 0.3)
-plt.plot(interp_T_net, q_average, c = 'tab:blue', alpha = 0.5, linestyle = 'dashed')
-
-plt.xlabel(r"$T_s$")
-plt.ylabel(r"$q$")
-#plt.grid()
-plt.savefig("q_plot.png")
-plt.clf()
-
-
-plt.plot(interp_T_net, q_rel, c = 'tab:blue', alpha = 0.5, linestyle = 'dashed')
-plt.xlabel(r"$T_s$")
-plt.ylabel(r"$\frac{<q_{osc}>}{q_0}$")
-#plt.grid()
-plt.savefig("q_rel_plot.png")
-plt.clf()
-
-# plt.show()
-# plt.scatter(t_net[:tstep], j_log, s = msize, marker = mstyle)
-# plt.scatter(t_net[:tstep], j_0_log, s = msize, marker = mstyle)
-plt.plot(t_net[:tstep], j_log, marker = mstyle, markersize = msize)
-plt.plot(t_net[:tstep], j_0_log, marker = mstyle, markersize = msize)
-# plt.plot(t_net[:tstep], make_interp_spline(t_net[:tstep:interpolation_step], j_log[::interpolation_step], 3)(t_net[:tstep]))
-plt.xlabel(r"$t$, s")
-plt.ylabel(r"$j$")
-#plt.grid()
-plt.savefig("j_plot.png")
-plt.clf()
-
-jV_average = []
-V2_average = []
-z = []
-interpolation_step = tstep // omega;
-modifier = 20
-interpolation_step *= modifier
-for i in range(omega // modifier):
-    jV_average.append(np.average(j_log[i * interpolation_step: (i + 1) * interpolation_step] * V_vc_log[i * interpolation_step: (i + 1) * interpolation_step]))
-    V2_average.append(np.average(V_vc_log[i * interpolation_step: (i + 1) * interpolation_step]**2))
-    z.append(V2_average[-1]/jV_average[-1])
-
-plt.xlim(0, dt * tstep)
-plt.ylim(-100, 300)
-plt.scatter(dt * interpolation_step * np.arange(0.5, 0.5 + tstep // interpolation_step), z, s=10,marker="x")
-plt.plot(dt * interpolation_step * np.arange(0.5, 0.5 + tstep // interpolation_step),z)
-#plt.grid()
-plt.savefig("z_plot.png")
-print(z)
+plt.plot(x_net[2:-2] * r_debye, TK(result[tstep, 2:-2]))
+plt.grid()
+plt.ylim(TK(T0 * 0.9), TK(2 * T0))
+plt.xlim(x_net[2] * r_debye, x_net[-3] * r_debye)
+plt.show()
+plt.xlim(0, t_net_max * tau_p)
+plt.plot(t_net[:tstep + 1] * tau_p, TK(result[:, -3]))
+plt.grid()
+plt.show()
+plt.plot(t_net[:tstep] * tau_p, V_vc_log)
+plt.grid()
+plt.show()
+plt.plot(t_net[:tstep] * tau_p, q_log)
+plt.grid()
+plt.show()

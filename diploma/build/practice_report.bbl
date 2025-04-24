@@ -1,0 +1,81 @@
+\begin{thebibliography}{10}
+
+\bibitem{gunn2017surface}
+{\sc J.~P. Gunn et~al.}, {\em Surface heat loads on the {ITER} divertor vertical targets}, Nuclear Fusion {\bfseries 57} (2017), p.~046025.
+
+\bibitem{merola2015engineering}
+{\sc M.~Merola et~al.}, {\em Engineering challenges and development of the {ITER} blanket system and divertor}, Fusion Engineering and Design {\bfseries 96} (2015), pp.~34--41.
+
+\bibitem{motojima2015iter}
+{\sc O.~Motojima}, {\em The iter project construction status}, Nuclear Fusion {\bfseries 55} (2015), p.~104023.
+
+\bibitem{moritz2023thermionic}
+{\sc J.~Moritz et~al.}, {\em Thermionic emission of a tungsten surface in high heat flux plasma: Pic simulations}, Physics of Plasmas {\bfseries 30} (2023).
+
+\bibitem{coenen2015elm}
+{\sc J.~W. Coenen et~al.}, {\em Elm-induced transient tungsten melting in the {JET} divertor}, Nuclear fusion {\bfseries 55} (2015), p.~023010.
+
+\bibitem{soukhanovskii23rd}
+{\sc V.~Soukhanovskii et~al.}, {\em 23rd iaea fusion energy conference daejon, korea rep. of, 11-16 october 2010} .
+
+\bibitem{spolaore2017electromagnetic}
+{\sc M.~Spolaore et~al.}, {\em Electromagnetic elm and inter-elm filaments detected in the compass scrape-off layer}, Nuclear Materials and Energy {\bfseries 12} (2017), pp.~844--851.
+
+\bibitem{laggner2016high}
+{\sc F.~Laggner et~al.}, {\em High frequency magnetic fluctuations correlated with the inter-elm pedestal evolution in asdex upgrade}, Plasma Physics and Controlled Fusion {\bfseries 58} (2016), p.~065005.
+
+\bibitem{takamura1998heat}
+{\sc S.~Takamura, M.~Ye, T.~Kuwabara and N.~Ohno}, {\em Heat flows through plasma sheaths}, physics of plasmas {\bfseries 5} (1998), pp.~2151--2158.
+
+\bibitem{langmuir1913effect}
+{\sc I.~Langmuir}, {\em The effect of space charge and residual gases on thermionic currents in high vacuum}, Physical Review {\bfseries 2} (1913), p.~450.
+
+\bibitem{stangeby2000plasma}
+{\sc P.~C. Stangeby}, {\em The Plasma Boundary of Magnetic Fusion Devices}, CRC Press, 2000.
+
+\bibitem{moritz2024simulated}
+{\sc J.~Moritz et~al.}, {\em Simulated temperature of a tungsten spot facing large plasma heat loads}, Nuclear Materials and Energy {\bfseries 41} (2024), p.~101753.
+
+\bibitem{kirk2006evolution}
+{\sc A.~Kirk et~al.}, {\em Evolution of filament structures during edge-localized modes in the {MAST} tokamak}, Physical review letters {\bfseries 96} (2006), p.~185001.
+
+\bibitem{myra2015radio}
+{\sc J.~R. Myra and D.~A. D’Ippolito}, {\em Radio frequency sheaths in an oblique magnetic field}, Physics of Plasmas {\bfseries 22} (2015).
+
+\bibitem{schwager1993effects}
+{\sc L.~Schwager}, {\em Effects of secondary and thermionic electron emission on the collector and source sheaths of a finite ion temperature plasma using kinetic theory and numerical simulation}, Physics of Fluids B: Plasma Physics {\bfseries 5} (1993), pp.~631--645.
+
+\bibitem{ou2017heat}
+{\sc J.~Ou and X.~Zhao}, {\em Heat flow through a plasma sheath in the presence of secondary electron emission from plasma-wall interaction}, Contributions to Plasma Physics {\bfseries 57} (2017), pp.~50--57.
+
+\bibitem{sheehan2014effects}
+{\sc J.~Sheehan, I.~Kaganovich, H.~Wang, D.~Sydorenko, Y.~Raitses and N.~Hershkowitz}, {\em Effects of emitted electron temperature on the plasma sheath}, Physics of Plasmas {\bfseries 21} (2014).
+
+\bibitem{taccogna2014non}
+{\sc F.~Taccogna}, {\em Non-classical plasma sheaths: space-charge-limited and inverse regimes under strong emission from surfaces}, The European Physical Journal D {\bfseries 68} (2014), pp.~1--8.
+
+\bibitem{stangeby1984plasma}
+{\sc P.~Stangeby}, {\em Plasma sheath transmission factors for tokamak edge plasmas}, The Physics of fluids {\bfseries 27} (1984), pp.~682--690.
+
+\bibitem{godyak2002smooth}
+{\sc V.~A. Godyak and N.~Sternberg}, {\em Smooth plasma-sheath transition in a hydrodynamic model}, IEEE Transactions on Plasma Science {\bfseries 18} (2002), pp.~159--168.
+
+\bibitem{chabert2014size}
+{\sc P.~Chabert}, {\em What is the size of a floating sheath?}, Plasma Sources Science and Technology {\bfseries 23} (2014), p.~065042.
+
+\bibitem{campanell2018alternative}
+{\sc M.~D. Campanell}, {\em Alternative model of space-charge-limited thermionic current flow through a plasma}, Physical Review E {\bfseries 97} (2018), p.~043207.
+
+\bibitem{campanell2016strongly}
+{\sc M.~Campanell and M.~Umansky}, {\em Strongly emitting surfaces unable to float below plasma potential}, Physical review letters {\bfseries 116} (2016), p.~085003.
+
+\bibitem{campanell2020possible}
+{\sc M.~Campanell}, {\em Possible mitigation of tokamak plasma--surface interactions using thermionic divertor plates with inverse sheaths}, Physics of Plasmas {\bfseries 27} (2020).
+
+\bibitem{chen1984introduction}
+{\sc F.~F. Chen and {others}}, {\em Introduction to Plasma Physics and Controlled Fusion}, vol.~1, Springer, 1984.
+
+\bibitem{hobbs1967heat}
+{\sc G.~Hobbs and J.~Wesson}, {\em Heat flow through a langmuir sheath in the presence of electron emission}, Plasma Physics {\bfseries 9} (1967), p.~85.
+
+\end{thebibliography}

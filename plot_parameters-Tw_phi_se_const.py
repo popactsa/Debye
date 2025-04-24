@@ -54,6 +54,7 @@ deltae  = 0.0 # SEE coefficient
 cs = np.sqrt(Te / mi) # Speed velocity in plasma
 r_debye = np.sqrt(Te / (4 * np.pi * nse * e**2)) # Debye radius
 vth = np.sqrt(8 * mi / np.pi / me) # Thermal velocity of plasma electrons(unitless)
+phi_se = -0.5
 
 # Conversion functions
 TK = lambda T : T * Te * erg_to_K
@@ -89,7 +90,7 @@ def erfcxexp_limit_resolve(x):
         return erfc(np.sqrt(x)) * np.exp(x)
 
 def Poisson_integrated_classic_trans(phi, y, args):
-    Tw, V_f, ne_se, phi_se = y
+    Tw, V_f, ne_se = y
     nte_w, upsilon_0 = args
     return (
         upsilon_0**2 * np.sqrt(1 - 2 * (phi - phi_se) / upsilon_0**2)
@@ -103,7 +104,7 @@ def Poisson_integrated_classic_trans(phi, y, args):
     )
 
 def Poisson_classic_trans(y, args):
-    Tw, V_f, ne_se, phi_se = y
+    Tw, V_f, ne_se = y
     nte_w, upsilon_0 = args
     return -2.0 * (
         Poisson_integrated_classic_trans(phi_se + V_f, y, args)
@@ -112,12 +113,12 @@ def Poisson_classic_trans(y, args):
 
 
 def quasineutrality_trans(y, args):
-    Tw, V_f, ne_se, phi_se = y
+    Tw, V_f, ne_se = y
     nte_w, upsilon_0 = args
     return 1 - nte_w * erfcxexp_limit_resolve(-V_f / Tw) - ne_se
 
 def Bohm_criterion_trans(y, args):
-    Tw, V_f, ne_se, phi_se = y
+    Tw, V_f, ne_se = y
     nte_w, upsilon_0 = args
     return phi_se + 0.5 * Tw / (
         ne_se * Tw
@@ -129,7 +130,7 @@ def Bohm_criterion_trans(y, args):
     )
 
 def j_wall_trans(y, args):
-    Tw, V_f, ne_se, phi_se = y
+    Tw, V_f, ne_se = y
     nte_w, upsilon_0 = args
     return (
             upsilon_0
@@ -138,20 +139,21 @@ def j_wall_trans(y, args):
             )
 
 def sys_trans(y):
-    Tw, V_f, ne_se, phi_se = y
+    Tw, V_f, ne_se = y
+    phi_se = -0.5
     args = [nte_w_func(0, Tw), upsilon_0_func(phi_se)]
     return [
         Poisson_classic_trans(y, args),
         j_wall_trans(y, args),
-        Bohm_criterion_trans(y, args),
+        # Bohm_criterion_trans(y, args),
         quasineutrality_trans(y, args),
     ]
 # Solving sys_trans to find transition point properties
 sol_trans_init_guesses = [
-    [TD(3165), -1.1866, 0.892, -0.591],
-    [TD(2900), -1.1866, 0.892, -0.591],
-    [TD(2750), -1.15, 0.9, -0.591],
-    [TD(3200), -1.25, 0.86, -0.6]
+    [TD(3165), -1.1866, 0.892],
+    [TD(2900), -1.1866, 0.892],
+    [TD(2750), -1.15, 0.9],
+    [TD(3200), -1.25, 0.86]
 ]
 
 is_trans_sol_found = False
@@ -165,20 +167,18 @@ for i in range(len(sol_trans_init_guesses)):
 if is_trans_sol_found == False:
     raise NameError('Appropriate sol_trans not found. Add more initial guesses')
 else:
-    Tw_trans, V_f_trans, ne_se_trans, phi_se_trans = sol_trans
+    Tw_trans, V_f_trans, ne_se_trans = sol_trans
     print(
         "Transition at : Tw = ",
         f"{TK(Tw_trans):.0f}\n",
         "\tV_f_trans = ",
         V_f_trans,
-        "\n\tphi_se_trans = ",
-        phi_se_trans,
         "\n\tne_se_trans = ",
         ne_se_trans,
     )
  # System for classic regime
 def j_wall_classic(y, args):
-    derw, V_f, ne_se, phi_se = y
+    derw, V_f, ne_se = y
     Tw, nte_w, upsilon_0 = args
     return (
             upsilon_0
@@ -186,27 +186,27 @@ def j_wall_classic(y, args):
             - 0.25 * vth * ne_se * np.exp(V_f)
             )
 
-def Bohm_criterion_classic(y, args):
-    derw, V_f, ne_se, phi_se = y
-    Tw, nte_w, upsilon_0 = args
-    return phi_se + 0.5 * Tw / (
-        ne_se * Tw
-        + nte_w
-        * (
-            erfcxexp_limit_resolve(-V_f / Tw)
-            - 1 / (np.sqrt(np.pi) * np.sqrt(-V_f / Tw))
-        )
-    )
+# def Bohm_criterion_classic(y, args):
+#     derw, V_f, ne_se, phi_se = y
+#     Tw, nte_w, upsilon_0 = args
+#     return phi_se + 0.5 * Tw / (
+#         ne_se * Tw
+#         + nte_w
+#         * (
+#             erfcxexp_limit_resolve(-V_f / Tw)
+#             - 1 / (np.sqrt(np.pi) * np.sqrt(-V_f / Tw))
+#         )
+#     )
 
 
 def quasineutrality_classic(y, args):
-    derw, V_f, ne_se, phi_se = y
+    derw, V_f, ne_se = y
     Tw, nte_w, upsilon_0 = args
     return 1 - nte_w * erfcxexp_limit_resolve(-V_f / Tw) - ne_se
 
 
 def Poisson_integrated_classic(phi, y, args):
-    derw, V_f, ne_se, phi_se = y
+    derw, V_f, ne_se = y
     Tw, nte_w, upsilon_0 = args
     return (
         upsilon_0**2 * np.sqrt(1 - 2 * (phi - phi_se) / upsilon_0**2)
@@ -221,7 +221,7 @@ def Poisson_integrated_classic(phi, y, args):
 
 
 def Poisson_classic(y, args):
-    derw, V_f, ne_se, phi_se = y
+    derw, V_f, ne_se = y
     Tw, nte_w, upsilon_0 = args
     return derw**2 - 2.0 * (
         Poisson_integrated_classic(phi_se + V_f, y, args)
@@ -230,13 +230,14 @@ def Poisson_classic(y, args):
 
 
 def sys_classic(y, *args):
-    derw, V_f, ne_se, phi_se = y
+    derw, V_f, ne_se = y
+    phi_se = -0.5
     Tw, = args
     args1 = [Tw, nte_w_func(derw, Tw), upsilon_0_func(phi_se)]
     return [
         quasineutrality_classic(y, args1),
         j_wall_classic(y, args1),
-        Bohm_criterion_classic(y, args1),
+        # Bohm_criterion_classic(y, args1),
         Poisson_classic(y, args1)
     ]
 
@@ -251,7 +252,6 @@ Tw_classic_net = np.linspace(
 dT_classic_net = Tw_classic_net[1] - Tw_classic_net[0]
 
 V_f_classic_net = np.zeros(Tw_classic_net_steps)
-phi_se_classic_net = np.zeros(Tw_classic_net_steps)
 ne_se_classic_net = np.zeros(Tw_classic_net_steps)
 derw_classic_net = np.zeros(Tw_classic_net_steps)
 
@@ -259,7 +259,7 @@ for i in range(Tw_classic_net_steps - 1, -1, -1): # can be easily done in a forw
     Tw = Tw_classic_net[i]
     args = (Tw,)
     if (i >= Tw_classic_net_steps - 2):
-        sol_classic = fsolve(sys_classic, [0.0, V_f_trans, ne_se_trans, phi_se_trans], args=args)
+        sol_classic = fsolve(sys_classic, [0.0, V_f_trans, ne_se_trans], args=args)
     else:
         j = 0
         while (not (np.isclose(sys_classic(sol_classic, *args), np.zeros(len(sol_classic))) == np.ones(len(sol_classic), dtype = bool)).all()) and j < 10:
@@ -269,21 +269,17 @@ for i in range(Tw_classic_net_steps - 1, -1, -1): # can be easily done in a forw
                     derw_classic_net[i + 1] + (derw_classic_net[i + 1] - derw_classic_net[i + 2]) / 5 * j,
                     V_f_classic_net[i + 1] + (V_f_classic_net[i + 1] - V_f_classic_net[i + 2]) / 5 * j, 
                     ne_se_classic_net[i + 1] + (ne_se_classic_net[i + 1] - ne_se_classic_net[i + 2]) / 5 * j, 
-                    phi_se_classic_net[i + 1] + (phi_se_classic_net[i + 1] - phi_se_classic_net[i + 2]) / 5 * j
                 ], 
                 args=args
             )
     derw_classic_net[i] = sol_classic[0]
     V_f_classic_net[i] = sol_classic[1]
     ne_se_classic_net[i] = sol_classic[2]
-    phi_se_classic_net[i] = sol_classic[3]
-    # if not (np.isclose(sys_classic(sol_classic, *args), np.zeros(len(sol_classic))) == np.ones(len(sol_classic), dtype = bool)).all():
-    #     print(f"{TK(Tw):.1f}(i = {i})", " : ", sys_classic(sol_classic, *args))
 
 # System for SCL regime
 
 def jwall_SCL(y, args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
     Tw, nte_w, upsilon_0 = args
     dip = (V_f - V_vc) / Tw
     return (
@@ -294,7 +290,7 @@ def jwall_SCL(y, args):
 
 
 def quasineutrality_SCL(y, args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
     Tw, nte_w, upsilon_0 = args
     dip = (V_f - V_vc) / Tw
     return (
@@ -303,7 +299,7 @@ def quasineutrality_SCL(y, args):
 
 
 def Bohm_SCL(y, args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
     Tw, nte_w, upsilon_0 = args
     dip = (V_f - V_vc) / Tw
     return (
@@ -320,7 +316,7 @@ def Bohm_SCL(y, args):
 
 
 def Poisson_integrated_SCL_beta(phi, y, args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
     Tw, nte_w, upsilon_0 = args
     dip = (V_f - V_vc) / Tw
     return (
@@ -339,14 +335,14 @@ def Poisson_integrated_SCL_beta(phi, y, args):
 
 
 def Poisson_SCL_beta(y, args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
     return -2 * (
         Poisson_integrated_SCL_beta(V_vc + phi_se, y, args)
         - Poisson_integrated_SCL_beta(phi_se, y, args)
     )
 
 def Poisson_integrated_SCL_alpha(phi, y, args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
     Tw, nte_w, upsilon_0 = args
     dip = (V_f - V_vc) / Tw
     res = (
@@ -373,14 +369,15 @@ def Poisson_integrated_SCL_alpha(phi, y, args):
     return res
 
 def Poisson_SCL_alpha(y, args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
     return derw**2 - 2 * (
         Poisson_integrated_SCL_alpha(V_f + phi_se, y, args)
         - Poisson_integrated_SCL_alpha(V_vc + phi_se, y, args)
     )
 
 def sys_SCL(y, *args):
-    derw, V_f, ne_se, phi_se, V_vc = y
+    derw, V_f, ne_se, V_vc = y
+    phi_se = -0.5
     Tw, = args
     nte_w = nte_w_func(derw, Tw)
     upsilon_0 = upsilon_0_func(phi_se)
@@ -388,7 +385,7 @@ def sys_SCL(y, *args):
     return [
         quasineutrality_SCL(y, args1),
         jwall_SCL(y, args1),
-        Bohm_SCL(y, args1),
+        # Bohm_SCL(y, args1),
         Poisson_SCL_alpha(y, args1),
         Poisson_SCL_beta(y, args1),
     ]
@@ -400,7 +397,6 @@ Tw_SCL_net_steps = 101
 Tw_SCL_net = np.linspace(Tw_SCL_net_min, Tw_SCL_net_max, Tw_SCL_net_steps)
 
 V_f_SCL_net = np.zeros(Tw_SCL_net_steps)
-phi_se_SCL_net = np.zeros(Tw_SCL_net_steps)
 V_vc_SCL_net = np.zeros(Tw_SCL_net_steps)
 ne_se_SCL_net = np.zeros(Tw_SCL_net_steps)
 derw_SCL_net = np.zeros(Tw_SCL_net_steps)
@@ -415,7 +411,6 @@ for i in range(Tw_SCL_net_steps):
                 derw_classic_net[-1],
                 V_f_classic_net[-1],
                 ne_se_classic_net[-1],
-                phi_se_classic_net[-1],
                 V_f_classic_net[-1],
             ],
             args=args,
@@ -427,7 +422,6 @@ for i in range(Tw_SCL_net_steps):
                 derw_SCL_net[i-1] - 0.05,
                 V_f_SCL_net[i-1] + 0.00005, # 0.0001 works for Te <= 150 eV, 0.00005 - for higher Te 
                 ne_se_SCL_net[i-1],
-                phi_se_SCL_net[i-1],
                 V_vc_SCL_net[i-1],
             ],
             args=args,
@@ -435,8 +429,7 @@ for i in range(Tw_SCL_net_steps):
     derw_SCL_net[i] = sol_SCL[0]
     V_f_SCL_net[i] = sol_SCL[1]
     ne_se_SCL_net[i] = sol_SCL[2]
-    phi_se_SCL_net[i] = sol_SCL[3]
-    V_vc_SCL_net[i] = sol_SCL[4]
+    V_vc_SCL_net[i] = sol_SCL[3]
     # if not (np.isclose(sys_SCL(sol_SCL, *args), np.zeros(len(sol_SCL))) == np.ones(len(sol_SCL), dtype = bool)).all():
     #     print(f"{TK(Tw):.1f}", " : ", sys_SCL(sol_SCL, *args))
     #     True
@@ -452,12 +445,10 @@ V_f_all_net = np.concatenate((V_f_classic_net, V_f_SCL_net[1:]))
 V_vc_all_net = np.concatenate((V_f_classic_net, V_vc_SCL_net[1:]))
 derw_all_net = np.concatenate((derw_classic_net, derw_SCL_net[1:]))
 ne_se_all_net = np.concatenate((ne_se_classic_net, ne_se_SCL_net[1:]))
-phi_se_all_net = np.concatenate((phi_se_classic_net, phi_se_SCL_net[1:]))
 
 fig = plt.figure(figsize=(8, 6), dpi=300)
 
 plt.plot(Tw_all_net_plot, V_f_all_net, lw=2, label=r"$V_f$")
-plt.plot(Tw_all_net_plot, phi_se_all_net, lw=2, label=r"$\varphi_{se}$")
 plt.plot(Tw_all_net_plot, ne_se_all_net, lw=2, label=r"$n_e^{se}$")
 plt.plot(Tw_all_net_plot, derw_all_net, lw=2, label=r"$\varphi^'(x = 0)$")
 plt.plot(Tw_all_net_plot[Tw_classic_net_steps:], V_vc_SCL_net[1:], lw=2, label=r"$V_{vc}$", color = 'cyan', linestyle = '-.')
@@ -465,7 +456,7 @@ plt.plot(Tw_all_net_plot[Tw_classic_net_steps:], V_vc_SCL_net[1:], lw=2, label=r
 plt.text(
     # (min(Tw_all_net_plot) + TK(Tw_trans)) / 2 - 300,
     2200,
-    (ne_se_all_net[0] + phi_se_all_net[0])/2,
+    (ne_se_all_net[0] + -0.5)/2,
     r"Классический"
     "\n"
     r"режим",
@@ -476,7 +467,7 @@ plt.text(
 plt.text(
     # TK(Tw_trans) + 100,
     3100,
-    (ne_se_all_net[0] + phi_se_all_net[0])/2,
+    (ne_se_all_net[0] - 0.5)/2,
     r"Режим экранирования"
     "\n"
     r"объёмным зарядом",
@@ -502,7 +493,7 @@ plt.savefig("data/plot_parameters-Tw/Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_t
 # Plotting parameters distribution in SCL regime
 
 def ne_func_alpha(E_field, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     phi = E_field[0]
     E = E_field[1]
     res = np.zeros(np.shape(E_field)[1])
@@ -511,7 +502,7 @@ def ne_func_alpha(E_field, args):
     return res
 
 def ni_func_alpha(phi, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     res = np.zeros(np.shape(phi))
     for i in range(np.shape(res)[0]):
         if (phi[i] > 0):
@@ -521,7 +512,7 @@ def ni_func_alpha(phi, args):
     return res
     
 def nte_func_alpha(E_field, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     phi = E_field[0]
     E = E_field[1]
     res = np.zeros(np.shape(E_field)[1])
@@ -534,7 +525,7 @@ def nte_func_alpha(E_field, args):
     return res
 
 def pois_eq_alpha(x, E_field, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     phi = E_field[0]
     E = E_field[1]
     return [
@@ -547,7 +538,7 @@ def pois_eq_alpha(x, E_field, args):
     ]
 
 def pois_bc_alpha(E_field_a, E_field_b, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     return np.array([
         E_field_b[0] - (V_vc + phi_se),
         E_field_b[1]
@@ -573,7 +564,7 @@ x_net_alpha_plot_max = 0.01
 x_net_alpha_plot_steps = 201
 x_net_alpha_plot = np.linspace(0, x_net_alpha_plot_max, x_net_alpha_plot_steps)
 
-E_field_alpha_guess = np.full((2, np.shape(x_net_alpha)[0]), phi_se_trans + V_f_trans + Tw_trans)
+E_field_alpha_guess = np.full((2, np.shape(x_net_alpha)[0]), -0.5 + V_f_trans + Tw_trans)
 SCL_dist_plot_num = 60
 
 der_plot_alpha      = np.zeros(np.shape(x_net_alpha_plot)[0])
@@ -586,17 +577,15 @@ for i in range(Tw_SCL_net_steps):
             derw_SCL_net[i],
             V_f_SCL_net[i],
             ne_se_SCL_net[i],
-            phi_se_SCL_net[i],
             V_vc_SCL_net[i],
             Tw_SCL_net[i], 
             nte_w_func(derw_SCL_net[i], Tw_SCL_net[i]),
-            upsilon_0_func(phi_se_SCL_net[i])
+            upsilon_0_func(phi_se)
             )
     y = [
         derw_SCL_net[i],
         ne_se_SCL_net[i],
         V_f_SCL_net[i],
-        phi_se_SCL_net[i],
         V_vc_SCL_net[i]
     ]
     sol = SCL_distribution_alpha_sys(x_net_alpha, E_field_alpha_guess, *args)
@@ -610,9 +599,9 @@ for i in range(Tw_SCL_net_steps):
 
 plt.clf()
 plt.grid()
-n_alpha_wall = np.searchsorted(phi_plot_alpha, V_f_SCL_net[SCL_dist_plot_num] + phi_se_SCL_net[SCL_dist_plot_num])
+n_alpha_wall = np.searchsorted(phi_plot_alpha, V_f_SCL_net[SCL_dist_plot_num] - 0.5)
 n_alpha_wall = 0
-while (phi_plot_alpha[n_alpha_wall] > V_f_SCL_net[SCL_dist_plot_num] + phi_se_SCL_net[SCL_dist_plot_num]): n_alpha_wall += 1
+while (phi_plot_alpha[n_alpha_wall] > V_f_SCL_net[SCL_dist_plot_num] - 0.5): n_alpha_wall += 1
 x_net_alpha_plot = np.linspace(0, x_net_alpha_plot_max - x_net_alpha_plot[n_alpha_wall], x_net_alpha_plot_steps - n_alpha_wall)
 phi_plot_alpha = phi_plot_alpha[n_alpha_wall:]
 der_plot_alpha = der_plot_alpha[n_alpha_wall:]
@@ -621,7 +610,7 @@ ni_plot_alpha = ni_plot_alpha[n_alpha_wall:]
 nte_plot_alpha = nte_plot_alpha[n_alpha_wall:]
 
 def ne_func(E_field, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     phi = E_field[0]
     E = E_field[1]
     res = np.zeros(np.shape(E_field)[1])
@@ -633,7 +622,7 @@ def ne_func(E_field, args):
     return res
 
 def ni_func(phi, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     res = np.zeros(np.shape(phi))
     for i in range(np.shape(res)[0]):
         if (phi[i] > 0):
@@ -643,7 +632,7 @@ def ni_func(phi, args):
     return res
     
 def nte_func(E_field, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     phi = E_field[0]
     E = E_field[1]
     res = np.zeros(np.shape(E_field)[1])
@@ -670,7 +659,7 @@ def nte_func(E_field, args):
     return res
 
 def pois_eq(x, E_field, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     phi = E_field[0]
     E = E_field[1]
     return [
@@ -683,7 +672,7 @@ def pois_eq(x, E_field, args):
     ]
 
 def pois_bc(E_field_a, E_field_b, args):
-    derw, V_f, ne_se, phi_se, V_vc, Tw, nte_w, upsilon_0 = args
+    derw, V_f, ne_se, V_vc, Tw, nte_w, upsilon_0 = args
     return np.array([
         E_field_b[1],
         E_field_a[0] - (phi_se + V_vc)
@@ -709,7 +698,7 @@ x_net_plot_steps = 401
 x_net_plot = np.linspace(x_net_alpha_plot[-1], x_net_plot_max, x_net_plot_steps)
 
 E_field_guess = np.zeros((2, np.shape(x_net)[0]))
-E_field_guess[0, :] = 1.1 * phi_se_SCL_net[0]
+E_field_guess[0, :] = 1.2 * (-0.5)
 E_field_guess[1, :] = 0.01
 
 der_plot      = np.zeros(np.shape(x_net_plot)[0])
@@ -722,17 +711,15 @@ for i in range(Tw_SCL_net_steps):
             derw_SCL_net[i],
             V_f_SCL_net[i],
             ne_se_SCL_net[i],
-            phi_se_SCL_net[i],
             V_vc_SCL_net[i],
             Tw_SCL_net[i], 
             nte_w_func(derw_SCL_net[i], Tw_SCL_net[i]),
-            upsilon_0_func(phi_se_SCL_net[i])
+            upsilon_0_func(phi_se)
             )
     y = [
         derw_SCL_net[i],
         ne_se_SCL_net[i],
         V_f_SCL_net[i],
-        phi_se_SCL_net[i],
         V_vc_SCL_net[i]
     ]
     SCL_dist = np.zeros((5, x_net_plot_steps))
@@ -766,7 +753,7 @@ plt.xlabel(r"x", fontdict = dict(fontsize = 18))
 plt.savefig("data/plot_parameters-Tw/plot_Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))
 
 fig = plt.figure(figsize=(8, 6), dpi=300)
-plt.plot(x_net_alpha_plot, (phi_plot_alpha - np.full_like(phi_plot_alpha, phi_plot_alpha[-1])) 
+plt.plot(x_net_alpha_plot, (phi_plot_alpha - np.full_like(phi_plot_alpha, phi_plot_alpha[-1]))
          / (Tw_SCL_net[SCL_dist_plot_num] - Tw_trans), label = r"$\left(\varphi~ - \varphi_{vc}\right),\left(T_s - T_{trans}\right)$")
 plt.plot(x_net_alpha_plot, der_plot_alpha, label = r"$\varphi^,$ ")
 plt.plot(x_net_alpha_plot, ne_plot_alpha, label = r"$n_e$")
@@ -782,58 +769,48 @@ plt.title(r"$n_i^{se} = %.1f\cdot10^{%d}$ см$^{-3}$   "
 plt.xlabel(r"x", fontdict = dict(fontsize = 18))
 plt.savefig("data/plot_parameters-Tw/plot_alpha_Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))
 
-def q_ion_func(y, Tw_trans, is_MW = False):
+def q_ion_func(y, is_MW = False):
     derw, V_f, ne_se, V_vc, Tw = y
-    phi_se = -0.5
-    q_net = np.zeros(np.shape(V_f))
-    if (phi_se > 0) : return q_net
-    for i in range(np.shape(V_f)[0]):
-        upsilon_0 = upsilon_0_func(phi_se)
-        q_net[i] = upsilon_0 * (upsilon_0**2 / 2 - V_vc[i])
-        if (is_MW == True) :
-            q_net[i] *= nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
+    if (phi_se > 0) : return 0.0
+    upsilon_0 = upsilon_0_func(phi_se)
+    q_net = upsilon_0 * (upsilon_0**2 / 2 - V_vc)
+    if (is_MW == True) :
+        q_net = q_net * nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
     return q_net
 
-def q_e_func(y, Tw_trans, is_MW = False):
+def q_e_func(y, is_MW = False):
     derw, V_f, ne_se, V_vc, Tw = y
-    q_net = np.zeros(np.shape(V_f))
-    for i in range(np.shape(V_f)[0]):
-        if (Tw[i] < Tw_trans):
-            q_net[i] = (
-                0.25 * ne_se[i] * vth * 2 * np.exp(V_f[i])
-            )
-            # print("Classic!")
-        else:
-            q_net[i] = (
-                0.25 * ne_se[i] * vth * 2 * np.exp(V_vc[i])
-            )
-            # print("SCL!")
-        if (is_MW == True) :
-            q_net[i] *= nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
+    if (Tw < Tw_trans):
+        q_net = (
+            0.25 * ne_se * vth * 2 * np.exp(V_f)
+        )
+        print("Classic!")
+    else:
+        q_net = (
+            0.25 * ne_se * vth * 2 * np.exp(V_vc)
+        )
+        print("SCL!")
+    if (is_MW == True) :
+        q_net = q_net * nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
     return q_net
 
-def q_func(y, Tw_trans, is_MW = False): 
+def q_func(y, is_MW = False): 
     return (
-            q_e_func(y, Tw_trans, is_MW)
-            + q_ion_func(y, Tw_trans, is_MW)
+            q_e_func(y, is_MW)
+            + q_ion_func(y, is_MW)
         )
 
-y = [derw_all_net, V_f_all_net, ne_se_all_net, V_vc_all_net, Tw_all_net]
-fig = plt.figure(figsize=(8, 6), dpi=300)
-is_MW = False
-plt.plot(TK(Tw_all_net), q_ion_func(y, Tw_trans, is_MW), label = r"Ионный")
-plt.plot(TK(Tw_all_net), q_e_func(y, Tw_trans, is_MW), label = r"Электронный")
-plt.plot(TK(Tw_all_net), q_func(y, Tw_trans, is_MW),  lw = 3, label = r"Суммарный")
-plt.legend()
-if not is_MW:
-    plt.ylabel(r"q")
-else:
-    plt.ylabel(r"q, МВт")
-plt.grid()
-plt.title(r"$n_i^{se} = %.1f\cdot10^{%d}$ см$^{-3}$   "
-    r"$T_e = %0.f$ эВ   "
-    r"$T_{trans} = %0.f$ К"
-    % (nse / 10 ** floor(log10(nse)), floor(log10(nse)), Te * erg_to_eV, TK(Tw_trans)),
-    y = -0.25)
-plt.xlabel(r"$T_s$(K)", fontdict = dict(fontsize = 18))
-plt.savefig("data/plot_parameters-Tw/q_plot_Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))
+# y = [derw_all_net, V_f_all_net, ne_se_all_net, V_vc_all_net, Tw_all_net]
+# fig = plt.figure(figsize=(8, 6), dpi=300)
+# plt.plot(Tw_all_net, q_ion_func(y, True), label = r"Ионный")
+# plt.plot(Tw_all_net, q_e_func(y, True), label = r"Электронный")
+# plt.plot(Tw_all_net, q_func(y, True), с = 'k', lw = 3, label = r"Суммарный")
+# plt.legend()
+# plt.grid()
+# plt.title(r"$n_i^{se} = %.1f\cdot10^{%d}$ см$^{-3}$   "
+#     r"$T_e = %0.f$ эВ   "
+#     r"$T_w = %0.f$ К"
+#     % (nse / 10 ** floor(log10(nse)), floor(log10(nse)), Te * erg_to_eV, TK(Tw_trans)),
+#     y = -0.25)
+# plt.xlabel(r"x", fontdict = dict(fontsize = 18))
+# plt.savefig("data/plot_parameters-Tw/q_plot_Te=%deV_nse=%0.1fe%d.png" %(ceil(Te * erg_to_eV), nse / 10 ** floor(log10(nse)), floor(log10(nse))))

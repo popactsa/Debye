@@ -558,38 +558,38 @@ def solve_debye(t, Tw, what = 'all'):
     elif what == 'y':
         return result
 
-def solve_debye_for_der_2(t, Tw, what):
-    result = np.ndarray(4, dtype = float)
-    args = (phi_se_func(base, amp, omega, t), Tw)
-    Tw_trans, V_f_trans, ne_se_trans = Tw_trans_osc_func(t) 
-    if Tw < Tw_trans:
-        sol = fsolve(sys_classic, [1.0, -3.0, 0.95], args=args)
-        result = [sol[0], sol[1], sol[2], sol[1]]
-    else:
-        j = 0
-        sol = np.ones((4, 1))
-        while (
-            not (
-                np.less(sys_SCL(sol, *args), np.full(len(sol), 1.0e-7))
-                == np.ones(len(sol), dtype=bool)
-            ).all()
-        ) and j < 30:
-            sol = fsolve(
-                sys_SCL,
-                [
-                    0 - 0.1 * j,  # 0.001
-                    V_f_trans + 0.00001 * j,
-                    ne_se_trans,
-                    V_f_trans,
-                ],
-                args=args,
-            )
-            j += 1
-        result = sol
-    elif what == 'Tw':
-        return Tw_trans
-    elif what == 'y':
-        return result
+# def solve_debye_for_der_2(t, Tw, what):
+#     result = np.ndarray(4, dtype = float)
+#     args = (phi_se_func(base, amp, omega, t), Tw)
+#     Tw_trans, V_f_trans, ne_se_trans = Tw_trans_osc_func(t) 
+#     if Tw < Tw_trans:
+#         sol = fsolve(sys_classic, [1.0, -3.0, 0.95], args=args)
+#         result = [sol[0], sol[1], sol[2], sol[1]]
+#     else:
+#         j = 0
+#         sol = np.ones((4, 1))
+#         while (
+#             not (
+#                 np.less(sys_SCL(sol, *args), np.full(len(sol), 1.0e-7))
+#                 == np.ones(len(sol), dtype=bool)
+#             ).all()
+#         ) and j < 30:
+#             sol = fsolve(
+#                 sys_SCL,
+#                 [
+#                     0 - 0.1 * j,  # 0.001
+#                     V_f_trans + 0.00001 * j,
+#                     ne_se_trans,
+#                     V_f_trans,
+#                 ],
+#                 args=args,
+#             )
+#             j += 1
+#         result = sol
+#     elif what == 'Tw':
+#         return Tw_trans
+#     elif what == 'y':
+#         return result
 
 def solve_debye_for_der(phi_se, Tw, Tw_trans, what):
     result = np.ndarray(4)
@@ -607,27 +607,28 @@ mod = 1.0
 # print(7 * mod / (kappa / (nse * cs / r_debye)) / dx)
 # exit()
 
-def derivative_func_for_q(y, t, Tw, Tw_trans, what)
-{
-    result = np.zeros(1)
-    with np.nditer(t, flags = ['multi_index']) as it:
-        for x in it:
-            index = it.multi_index
-            dqdy_sol = derivative(lambda y : q_func_y(y, debye_solution, phi_se_func(base, amp, omega, t), u_right, Tw_trans),
-                                   debye_solution,
-                                   order = der_precision,
-                                   preserve_shape = True)
-            dqdy = dqdy_sol.df
-            dydx = np.ndarray(np.shape(dqdy))
-            if what == 't':
-                dydx = derivative(lambda t : solve_debye_phi_se
-            elif what == 'Tw':
-            elif what == 'Tw_trans':
-            
-}
+# def derivative_func_for_q(y, t, Tw, Tw_trans, what)
+# {
+#     result = np.zeros(1)
+#     with np.nditer(t, flags = ['multi_index']) as it:
+#         for x in it:
+#             index = it.multi_index
+#             dqdy_sol = derivative(lambda y : q_func_y(y, debye_solution, phi_se_func(base, amp, omega, t), u_right, Tw_trans),
+#                                    debye_solution,
+#                                    order = der_precision,
+#                                    preserve_shape = True)
+#             dqdy = dqdy_sol.df
+#             dydx = np.ndarray(np.shape(dqdy))
+#             if what == 't':
+#                 dydx = derivative(lambda t : solve_debye_phi_se
+#             elif what == 'Tw':
+#             elif what == 'Tw_trans':
+#
+# }
 
 def rhs(t, u):
     dudt = np.ndarray((ntotal))
+    print(np.shape(u))
     # define udot in the simulation domain
     for i in range(2, ntotal - 2):
         d2udx2 = (-u[i-2] + 16.*u[i-1] - 30.*u[i] + 16.*u[i+1] - u[i+2]) / 12
@@ -636,41 +637,41 @@ def rhs(t, u):
     debye_solution, Tw_trans = solve_debye(t, u_right) 
     der_precision = 8
 
-    dTwdt = derivative(lambda t : solve_debye_t(t, Tw_trans, 'Tw'),
-                            t,
-                            order = der_precision).df
+    # dTwdt = derivative(lambda t : solve_debye_t(t, Tw_trans, 'Tw'),
+    #                         t,
+    #                         order = der_precision).df
+    #
+    # dqdy_sol = derivative(lambda y : q_func_y(y, debye_solution, phi_se_func(base, amp, omega, t), u_right, Tw_trans),
+    #                        debye_solution,
+    #                        order = der_precision,
+    #                        preserve_shape = True)
+    # dqdy = dqdy_sol.df
+    # if np.isclose(debye_solution[1] - debye_solution[3], 0.0, atol = 1.0e-5):
+    #     dqdy[3] = 0.0
+    #
+    # dqdphi_se = derivative(lambda phi_se : q_func_phi_se(debye_solution, phi_se, u_right, Tw_trans),
+    #                        phi_se_func(base, amp, omega, t),
+    #                        order = der_precision).df
+    # dphi_sedt = derivative(lambda t: phi_se_func(base, amp, omega, t), t, order = der_precision).df
+    #
+    # dqdTw_trans = derivative(lambda Tw_trans : q_func_Tw_trans(debye_solution, phi_se_func(base, amp, omega, t), u_right, Tw_trans),
+    #                    Tw_trans,
+    #                    order = der_precision).df
+    # dTw_transdt = derivative(lambda x : Tw_trans_osc_arr_func(x, 'Tw'), t, order = der_precision).df
 
-    dqdy_sol = derivative(lambda y : q_func_y(y, debye_solution, phi_se_func(base, amp, omega, t), u_right, Tw_trans),
-                           debye_solution,
-                           order = der_precision,
-                           preserve_shape = True)
-    dqdy = dqdy_sol.df
-    if np.isclose(debye_solution[1] - debye_solution[3], 0.0, atol = 1.0e-5):
-        dqdy[3] = 0.0
-
-    dqdphi_se = derivative(lambda phi_se : q_func_phi_se(debye_solution, phi_se, u_right, Tw_trans),
-                           phi_se_func(base, amp, omega, t),
-                           order = der_precision).df
-    dphi_sedt = derivative(lambda t: phi_se_func(base, amp, omega, t), t, order = der_precision).df
-
-    dqdTw_trans = derivative(lambda Tw_trans : q_func_Tw_trans(debye_solution, phi_se_func(base, amp, omega, t), u_right, Tw_trans),
-                       Tw_trans,
-                       order = der_precision).df
-    dTw_transdt = derivative(lambda x : Tw_trans_osc_arr_func(x, 'Tw'), t, order = der_precision).df
-
-    print('phi_se : ', dqdphi_se * dphi_sedt)
-    print('Tw_trans : ', dqdTw_trans * dTw_transdt)
-    # grad_dx_right = mod * (dqdTw_trans * dTw_transdt) / (kappa / (nse * cs * r_debye)) * dx / dt
-
-    grad_dx_right = mod * (#sum(dqdy * dydt) * 0.0
-                           + dqdphi_se * dphi_sedt
-                           + dqdTw_trans * dTw_transdt
-                           + dqdTw * dTwdt) / (kappa / (nse * cs * r_debye)) * dx
-    # grad_dx_right = mod
-
-    print(grad_dx_right)
+    # print('phi_se : ', dqdphi_se * dphi_sedt)
+    # print('Tw_trans : ', dqdTw_trans * dTw_transdt)
+    # # grad_dx_right = mod * (dqdTw_trans * dTw_transdt) / (kappa / (nse * cs * r_debye)) * dx / dt
+    #
+    # grad_dx_right = mod * (#sum(dqdy * dydt) * 0.0
+    #                        + dqdphi_se * dphi_sedt
+    #                        + dqdTw_trans * dTw_transdt
+    #                        + dqdTw * dTwdt) / (kappa / (nse * cs * r_debye)) * dx
+    # # grad_dx_right = mod
+    #
+    # print(grad_dx_right)
     print("============")
-    # exit()
+    exit()
     dudt[-2] = (
         -24.0 * grad_dx_right
         + 17.0 * dudt[-3]

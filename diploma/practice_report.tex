@@ -1,0 +1,210 @@
+\documentclass [fontsize=14pt, paper=a4, pagesize, DIV=calc] {scrartcl}
+% \documentclass [fontsize=14pt] {scrartcl}
+% \documentclass [12pt] {article}
+
+\usepackage{ragged2e}
+\justifying
+
+\usepackage[a4paper, left=3.0cm, right=1.5cm, top=2.0cm, bottom=2.0cm, footskip=1.0cm]{geometry}
+\setlength{\parindent}{1.25pt}
+\usepackage{setspace}
+\onehalfspacing
+
+% graphics
+\usepackage{pstool}                    % post-script editing from latex
+\usepackage[dvips]{rotating,graphicx}  % use graphics 
+\usepackage{float}                     % enables float options (positioning of elements)
+\usepackage{soul}
+\usepackage{xcolor}
+
+\usepackage{blindtext}
+
+% fonts
+\usepackage[utf8]{inputenc}
+% \usepackage[t2a]{fontenc}
+% \usepackage{lmodern}                   % loads latin-modern fonts
+\usepackage[T1]{fontenc}
+\usepackage{mathptmx}
+\usepackage{slashed}
+\usepackage{color}                     % use colors in text
+
+\usepackage{sectsty}
+\allsectionsfont{\fontfamily{ptm}\bfseries}
+\sectionfont{\fontsize{22}{15}\bfseries\fontfamily{ptm}\selectfont}
+\subsectionfont{\fontsize{20}{15}\bfseries\fontfamily{ptm}\selectfont}
+
+
+\usepackage{mathrsfs}
+% links
+\usepackage{hyperref}
+\hypersetup{
+            %backref,  % already set somewhere
+            pdfpagemode=UseOutlines,
+            linkcolor=[RGB]{0,51,160}, % blue,
+            citecolor=[RGB]{0,51,160}, % blue,
+            urlcolor=[RGB]{0,51,160}, % blue,
+            % hyperfigures=true,  % already set somewhere
+            colorlinks=true}
+
+\parindent=14pt
+
+\usepackage{euscript}	 % Шрифт Евклид
+\usepackage{mathrsfs} % Красивый матшрифт
+\usepackage{enumitem}  % helps to make smaller dots in enum
+\usepackage{latexsym}
+
+% other styles
+\usepackage{enumitem}  % helps to make smaller dots in enum
+\usepackage{latexsym}
+
+% math
+\usepackage{siunitx}                        % use si units with \si{unit} or \SI{#}{unit}
+\usepackage{amsmath,amsfonts,amssymb,amsthm,mathtools} % AMS
+% \usepackage{bm}                             % bold math symbols
+\usepackage{gensymb}
+\newcommand{\proptoinverse}{\mathrel{\mskip1mu\reflectbox{$\propto$}\mskip-1mu}}
+
+% Define header and footer
+\usepackage{lastpage}
+\usepackage{fancyhdr}
+\fancypagestyle{plain}{%
+\fancyhf{} % clear all header and footer fields
+\fancyfoot[C]{\fontfamily{cmr}\fontsize{14pt}{14pt}\selectfont\thepage} % except the center
+\renewcommand{\headrulewidth}{0pt}
+\renewcommand{\footrulewidth}{0pt}}
+% \usepackage[a4paper,margin=1cm,footskip=0.5cm]{geometry}
+
+% \usepackage{float}
+% \restylefloat{table}
+
+\usepackage{graphicx}
+\usepackage{caption}
+% \captionsetup[figure]{name=Рисунок}
+% \DeclareCaptionSubType*[asbuk]{figure}
+% \captionsetup[subfigure]{labelformat=}
+\usepackage{subcaption}
+\renewcommand\thesubfigure{\asbuk{subfigure}}
+\usepackage{subfloat}
+
+
+\usepackage{wrapfig}
+\usepackage{tabularx}
+
+% tables
+\usepackage{multirow}       % allows multiple rows put into one
+\usepackage{booktabs}       % hline extensions like \toprule \bottomrule \midrule 
+\usepackage{makecell}       % multiline cells
+
+% references
+\usepackage{cite}
+% \usepackage[backend=bibtex, citestyle=numeric,bibstyle=authortitle]{biblatex} %Imports biblatex package
+% \addbibresource{mybib.bib} %Import the bibliography file
+% \renewcommand\citeform[1]{[#1]}
+\usepackage[nameinlink,capitalize]{cleveref}  % easy referencing
+
+\usepackage[russian]{babel}
+% table of contents settings
+\usepackage{tocloft}
+\usepackage{titlesec}
+\cftsetindents{section}{0em}{2em}
+% \cftsetindents{subsection}{0em}{2em}
+\renewcommand\cfttoctitlefont{\hfill\Large\bfseries}
+\renewcommand\cftaftertoctitle{\hfill\mbox{}}
+\renewcommand{\cftsecleader}{\cftdotfill{\cftdotsep}}
+\newlength{\anIndent}
+\setlength{\anIndent}{\parindent}
+
+\titleformat{\section}
+  {\normalfont\Large\bfseries}{\thesection}{2\anIndent-\widthof{\thesection}}{}
+
+\titleformat{\subsection}
+  {\normalfont\large\bfseries}{\thesubsection}{3\anIndent-\widthof{\thesubsection}}{}
+
+\titleformat{\subsubsection}
+  {\normalfont\normalsize\bfseries}{\thesubsubsection}{4\anIndent-\widthof{\thesubsubsection}}{}
+
+\newenvironment{indentedSection}[1]{%
+    %Input #1: Level of indentation
+    \begin{adjustwidth}{#1\anIndent+\anIndent}{}
+        \hspace{\anIndent}% Indent first line
+        \ignorespaces% Ignor any space at start of environment
+    }{\end{adjustwidth}}
+
+\setcounter{tocdepth}{3}
+
+\DeclareMathOperator{\sgn}{\mathop{sgn}}
+\DeclareMathOperator{\Div}{div}
+\DeclareMathOperator{\Rot}{rot}
+\numberwithin{equation}{section}
+\DeclareMathOperator\erfc{erfc}
+\DeclareOldFontCommand{\sc}{\normalfont\bfseries}{\textsc}
+%
+
+
+\begin{document}
+
+% Title Page %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%% 
+\pagestyle{empty}
+\begin{titlepage}
+\begin{center}
+%\vspace*{1\baselineskip}
+
+{\large \textbf{Министерство науки и высшего образования Российской Федерации
+федеральное государственное автономное образовательное учреждение высшего образования
+}}
+
+\vspace*{1\baselineskip}
+
+{\Large \textbf{Национальный исследовательский ядерный университет «МИФИ»}}
+
+\vspace*{2\baselineskip}
+
+{\Large \textbf{Кафедра №97}}
+
+\vspace*{1\baselineskip}
+
+{\Large \textbf{«Суперкомпьютерное моделирование в инженерно-физических процессах»}}
+
+\vspace*{1\baselineskip}
+
+{\Large \textbf{Дипломная работа}}
+
+\vspace*{1\baselineskip}
+
+{\Large  {\textbf{''Динамические характеристики\\нестационарного дебаевского слоя''}}}
+
+\end{center}
+\vspace*{2\baselineskip}
+\begin{flushright}
+\begin{large}
+Выполнил:\\
+студент группы Б21---221\\
+Шатилов И. А.\\
+Научный руководитель:\\
+к.ф.-м.н. доцент каф.21\\
+Степаненко А. А.
+\end{large} 
+\end{flushright}
+
+\vspace*{2\baselineskip}
+\begin{center}
+Москва --- 2025
+\end{center}
+\end{titlepage}
+\pagebreak
+
+% Description %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\pagestyle{plain}
+\tableofcontents
+\pagebreak
+\input{src/Introduction}
+\input{src/LiteratureOverview}
+\input{src/Model}
+\input{src/ClassicRegime}
+\input{src/SCLRegime}
+\input{src/ModelResults}
+\input{src/HeatconductivityModelling}
+\clearpage
+\bibliographystyle{siamurl}
+\bibliography{mybib}
+\end{document}

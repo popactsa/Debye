@@ -1,0 +1,53 @@
+This is BibTeX, Version 0.99d (TeX Live 2026/dev/Arch Linux)
+Capacity: max_strings=200000, hash_size=200000, hash_prime=170003
+The top-level auxiliary file: practice_report.aux
+The style file: siamurl.bst
+Reallocated glb_str_ptr (elt_size=8) to 20 items from 10.
+Reallocated global_strs (elt_size=200001) to 20 items from 10.
+Reallocated glb_str_end (elt_size=8) to 20 items from 10.
+Reallocated singl_function (elt_size=8) to 100 items from 50.
+Database file #1: mybib.bib
+Warning--empty journal in soukhanovskii23rd
+Warning--empty year in soukhanovskii23rd
+You've used 26 entries,
+            2794 wiz_defined-function locations,
+            775 strings with 9774 characters,
+and the built_in function-call counts, 8520 in all, are:
+= -- 781
+> -- 239
+< -- 0
++ -- 98
+- -- 49
+* -- 470
+:= -- 1002
+add.period$ -- 26
+call.type$ -- 26
+change.case$ -- 24
+chr.to.int$ -- 0
+cite$ -- 28
+duplicate$ -- 412
+empty$ -- 850
+format.name$ -- 49
+if$ -- 2410
+int.to.chr$ -- 0
+int.to.str$ -- 26
+missing$ -- 28
+newline$ -- 81
+num.names$ -- 26
+pop$ -- 173
+preamble$ -- 1
+purify$ -- 0
+quote$ -- 0
+skip$ -- 834
+stack$ -- 0
+substring$ -- 342
+swap$ -- 251
+text.length$ -- 0
+text.prefix$ -- 0
+top$ -- 0
+type$ -- 0
+warning$ -- 2
+while$ -- 59
+width$ -- 28
+write$ -- 205
+(There were 2 warnings)

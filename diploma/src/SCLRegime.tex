@@ -1,0 +1,75 @@
+\subsection{Режим ограничения объёмным зарядом}
+
+\qquadС увеличением электронной эмиссии со стенки, начиная с некоторого критического значения, 
+возникает виртуальный катод --- минимум потенциала, где как следствие, отсутствует поле.
+Возникающая структура регулирует ток частиц в обе стороны, в частности, возникает отражение
+эмитированных электронов на разности потенциалов $\varphi_{vc} - \varphi_s < 0$ 
+обратно на стенку. Таким образом, в системе уравнений возникает дополнительная 
+неизвестная --- $\varphi_{vc}$.
+
+\qquadТок прошедших виртуальный катод электронов из плазмы определяется соответствующим током 
+на виртуальном катоде, т.к. между стенкой и виртуальным катодом электроны отражаются на 
+стенку.
+
+\qquadДля потока электронов в области $x > x^{vc}$ верно уравнение неразрывности:
+\begin{equation}
+	dj_{te}(\upsilon_s) = e\upsilon_s n_{te}^s \cdot f(\upsilon_s) d\upsilon_s = e\upsilon(x, \upsilon_s)\cdot dn_{te}(x)
+\end{equation}
+
+\qquadОтсюда:
+\begin{equation}
+	n_{te} = n_{te}^s \int\limits_{\upsilon_{vc}}^{\infty}\,d\upsilon_s \cfrac{\upsilon_s f(\upsilon_s)}{\upsilon}
+	\label{n_thermionic}
+\end{equation}
+где $\upsilon_{vc}$ --- минимальная необходимая для преодоления виртуального катода 
+при движении со стенки скорость электронов.
+
+% \qquadСтоит отметить, что $n_{te}^s$ в случае экранирования объёмным зарядом(как и в классическом 
+% случае) является концентрацией электронов в потоке, эмитируемом со стенки.
+
+\qquadТ.к. слой считается бесстолкновительным, из закона сохранения энергии выразим скорость  
+электронов в точке --- $\upsilon$:
+\begin{equation*}
+	\cfrac{m_e(\upsilon_s)^2}{2} - e(V_f + \varphi_{se}) = \cfrac{m_e\upsilon^2}{2} - e\varphi
+\end{equation*}
+
+\begin{equation}
+	\upsilon = \upsilon_s\sqrt{1 + \cfrac{2e(\varphi - (V_f + \varphi_{se}))}{m_e(\upsilon_s)^2}}
+	\label{upsilon_th}
+\end{equation}
+
+\qquadИнтегрируя, получим:
+\begin{equation}
+	n_{te}(\varphi) = n_{te}^s\erfc{\sqrt{\cfrac{e(\varphi - \varphi_{vc})}{T_s}}}\exp{\cfrac{e(\varphi - (V_f + \varphi_{se}))}{T_s}}
+\end{equation}
+
+В области между поверхностью плитки и виртуальным катодом, примем, что ансамбль термоэлектронов находится в равновесии и 
+распределение является максвелловским.
+
+Составим систему уравнений аналогичную полученной в классическом режиме: неизвестными приняты $n_e^{se}, \varphi_{se}, \left(\cfrac{\partial \varphi}{\partial x}\right)_s, V_f, V_{vc}$,
+заданными константами --- $n_i^{se}, T_s$.
+
+Область между виртуальным катодом и входом в дебаевский слой можно рассматривать 
+как при классическом режиме: основное отличие заключается в том, что выражение для 
+термоэмиссионного тока теперь содержит множитель ''отсечки''. Таким образом, заменив 
+в выражениях $V_f$ на $V_{vc}$ и учтя отражение термоэмиссионных электронов, получим 
+аналог прежних четырёх уравнений системы.
+
+Замыкающее уравнение может быть получено интегрированием уравнения Пуассона в области 
+между поверхностью плитки и виртуальным катодом:
+\begin{equation}
+    \begin{split}
+        \left(\cfrac{d\varphi}{dx}\right)^2_s &= 8\pi\left[n_im_i\upsilon_0^2\sqrt{1 - \cfrac{2e(\varphi - \varphi_{se})}{m_i\upsilon_0^2}} + \right.
+        \\ &+ n_e^{se}T_e\exp{\cfrac{-e\varphi_{se}}{T_e}}\left(\exp{\cfrac{e\varphi}{T_e}}\erfc{\sqrt{\cfrac{e(\varphi - (V_{vc} + \varphi_{se}))}{T_e}}} \right.+ 
+        \\ &+ \left. \cfrac{2}{\sqrt{\pi}}\exp{\cfrac{e(V_{vc} + \varphi_{se})}{T_e}}\sqrt{\cfrac{e(\varphi - (V_{vc} + \varphi_{se}))}{T_e}}\right) + 
+        \\ &+ \left. n_{te}^sT_s\exp{\cfrac{e(\varphi - (V_f+\varphi_{se}))}{T_s}}\right]\Bigg|_{V_{vc} + \varphi_{se}}^{V_f + \varphi_{se}}
+    \end{split}
+    \label{eq::Poisson_SCL_alpha}
+\end{equation}
+
+Выражение для теплового потока имеет вид:
+\begin{equation}
+    q = n_i^{se}\upsilon_0\left(\cfrac{m_i\upsilon_0^2}{2} - eV_{vc}\right) + \cfrac{1}{4}n_e^{se}\upsilon_e^{th}\cdot2T_e\exp\left[\cfrac{eV_{vc}}{T_e}\right]
+\end{equation}
+
+

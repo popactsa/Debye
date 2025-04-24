@@ -3,6 +3,7 @@ from math import fabs
 import warnings
 import time as tm
 import datetime
+from scipy.interpolate import make_smoothing_spline
 import matplotlib.pyplot as plt
 from decimal import Decimal
 from scipy.special import erfc, erf
@@ -53,6 +54,8 @@ kappa = 116.6 * 1.0e5 / K_to_erg  # Thermal diffusivity
 # Cp  = 180 * 1.0e4 # Isobaric heat capacity
 # kappa = 100 * 1.0e5  # Thermal diffusivity
 
+
+
 # Plasma properties
 nse = 1.0e13 # plasma density
 Te  = 200.0 * eV_to_erg # electron temperature
@@ -68,6 +71,23 @@ tau_p = 2 * np.pi / omega_p # Plasma period
 # Conversion functions
 TK = lambda T : T * Te * erg_to_K
 TD = lambda T : T / Te / erg_to_K
+
+spline_T_net = TD(np.array([1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000,
+               3200, 3400, 3600, 3695]))
+kappa_values = np.array([116.6, 113.5, 111.2, 110.1, 109.0, 108.3, 107.2, 106.8, 107.4,
+                108.8, 107.5, 107.2, 103.6, 101.1, 99.0]) * 1.0e5 / K_to_erg
+kappa_spline = make_smoothing_spline(spline_T_net, kappa_values, None)
+Cp_values = np.array([147.7, 152.2, 157.1, 162.5, 166.0, 174.7, 181.6, 189.1,
+                      197.6, 207.0, 217.8, 230.3, 244.8, 261.7, 270.7]) * 1.0e4 / K_to_erg
+Cp_spline = make_smoothing_spline(spline_T_net, Cp_values, None)
+rho_values = np.array([19.07, 19.01, 18.95, 18.89, 18.82, 18.72, 18.62, 18.52,
+                       18.42, 18.32, 18.22, 18.12, 18.0, 17.8, 17.5])
+rho_spline = make_smoothing_spline(spline_T_net, rho_values, None)
+C_values = np.zeros(np.shape(kappa_values))
+
+for i in range(np.shape(C_values)[0]):
+    C_values[i] = kappa_values[i] / (rho_values[i] * Cp_values[i])
+C_spline = make_smoothing_spline(spline_T_net, C_values, None)
 
 # Problem parameters
 L = 1.2e-1 # Thickness of a sample, sm
@@ -196,6 +216,7 @@ if sw_trans == False:
     raise NameError('Appropriate sol_trans not found. Add more initial guesses')
 else:
     properties_trans = 0.0, sol_trans[1], sol_trans[2], sol_trans[1], sol_trans[0]
+
 
 def j_func(y, Tw, Tw_trans):
     derw, V_f, ne_se, V_vc = y
@@ -502,7 +523,9 @@ def rhs(t, u):
            [u[-7], u[-6], u[-5], u[-4], u[-3]], 
            [-4.5, -3.5, -2.5, -1.5, -0.5]
     ) 
-    grad_dx_right = q_func([derw, V_f, ne_se, V_vc, Tw, Tw_trans]) * ((nse * cs) / kappa) * dx
+    grad_dx_right = q_func([derw, V_f, ne_se, V_vc, Tw, Tw_trans]) * ((nse * cs)
+                                                                      /
+                                                                      kappa_spline(Tw)) * dx
     # grad_dx_right = (1.0e12 / (kappa * Te)) * dx
     u[-2] = (
         -24.0 * grad_dx_right
@@ -520,32 +543,33 @@ def rhs(t, u):
     print(TK(u[-3:]))
     for i in range(2, ntotal - 2):
         d2udx2 = (-u[i-2] + 16.*u[i-1] - 30.*u[i] + 16.*u[i+1] - u[i+2]) / d2x12
-        dudt[i] = C * d2udx2
+        dudt[i] = C_spline(u[i]) * d2udx2
     print("dudt * dt : ", dudt[-5:] * dt)
     print(":::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::::")
 
     return dudt
 
 
-f1d2x12  =  C * 1./d2x12 # extra metric factor
-f16d2x12 =  C * 16./d2x12 # extra metric factor
-f30d2x12 = C * -30./d2x12 # extra metric factor
-
-def jac(t, u):
-    dFdu = np.zeros((ntotal, ntotal))
-    for i in range(2, ntotal - 2):
-        dFdu[i, i-2] = -f1d2x12
-        dFdu[i, i-1] = f16d2x12
-        dFdu[i, i]   = f30d2x12
-        dFdu[i, i+1] = f16d2x12
-        dFdu[i, i+2] = -f1d2x12
-    return dFdu  
+# f1d2x12  =  C * 1./d2x12 # extra metric factor
+# f16d2x12 =  C * 16./d2x12 # extra metric factor
+# f30d2x12 = C * -30./d2x12 # extra metric factor
+#
+# def jac(t, u):
+#     dFdu = np.zeros((ntotal, ntotal))
+#     for i in range(2, ntotal - 2):
+#         dFdu[i, i-2] = -f1d2x12
+#         dFdu[i, i-1] = f16d2x12
+#         dFdu[i, i]   = f30d2x12
+#         dFdu[i, i+1] = f16d2x12
+#         dFdu[i, i+2] = -f1d2x12
+#     return dFdu  
 
 u0 = np.full((ntotal), T0)
 result = np.ndarray((t_net_steps, ntotal))
 result[0, :] = u0[:]
 
-r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
+r = ode(rhs).set_integrator('vode', method='bdf', nsteps=1e6)
+# r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
 r.set_initial_value(u0, 0)
 index = 1
 tstep = t_net_steps - 1
@@ -553,8 +577,8 @@ V_vc_log = np.zeros(tstep)
 q_log = np.zeros(tstep)
 j_log = np.zeros(tstep)
 
-omega = floor(1 * t_net_max / 1.0e-5)
-phi_func = lambda t, V_f : -0.6 * V_f * np.sin(2*np.pi * t * omega / t_net_max) # approximately 3 periods in elm time
+omega = floor(1.0e5)
+phi_func = lambda t, V_f : -0.6 * V_f * np.sin(2*np.pi * t * omega) # approximately 3 periods in elm time
 result_w = np.zeros(t_net_steps)
 result_w[0] = T0
 while r.successful() and index < t_net_steps and index <= tstep:
@@ -592,7 +616,8 @@ derw, V_f, ne_se = fsolve(sys_classic, [1.0, -2.7, 0.995], args = (phi_se, T0))
 V_vc = V_f
 Tw = T0
 
-r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
+r = ode(rhs).set_integrator('vode', method='bdf', nsteps=1e6)
+# r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
 r.set_initial_value(u0, 0)
 index = 1
 tstep = t_net_steps - 1
@@ -650,22 +675,20 @@ plt.plot(t_net[:tstep + 1], TK(result_w_0))
 
 plt.xlabel(r"$t$, s")
 plt.ylabel(r"$T_s$, K")
-interpolation_step = tstep // omega;
-modifier = 10
 
-interpolation_step *= modifier
-print(tstep // interpolation_step)
+modifier = 4
+n_periods = floor(t_net_max / (2 * np.pi / omega)) // modifier
+interpolation_step = tstep // n_periods
 
 Ts_average = []
-for i in range(omega // modifier):
+for i in range(n_periods):
     Ts_average.append(TK(np.average(result_w[i * interpolation_step: (i + 1) * interpolation_step])))
-interp_t_net = dt * interpolation_step * np.arange(0.5, tstep // interpolation_step + 0.5)
+interp_t_net = dt * interpolation_step * np.arange(0.5, n_periods + 0.5)
 # plt.scatter(interp_t_net, Ts_average, s = msize, marker = mstyle, c = 'tab:blue', alpha = 0.3)
 plt.plot(interp_t_net, Ts_average, c = 'tab:blue', alpha = 0.5, linestyle = 'dashed')
 # #plt.grid()
 plt.savefig("temperature_plot.png")
 plt.clf()
-
 
 plt.xlabel(r"$t$, s")
 plt.ylabel(r"$T_{osc} / T_{plain}$, K")
@@ -677,19 +700,24 @@ plt.scatter(t_net[:tstep + 1], T_rel, s = msize, marker = mstyle)
 plt.savefig("temperature_rel_plot.png")
 plt.clf()
 
-interpolation_step = tstep // omega;
-modifier = 1
-interpolation_step *= modifier
-print(tstep // interpolation_step)
+modifier = 4
+n_periods = floor(t_net_max / (2 * np.pi / omega)) // modifier
+interpolation_step = tstep // n_periods
 
 # plt.show()
 # plt.scatter(t_net[:tstep], V_vc_log, s = msize, marker = mstyle)
 # plt.scatter(t_net[:tstep], V_vc_0_log, s = msize, marker = mstyle)
 # plt.plot(t_net[:tstep], V_vc_log)
 # plt.scatter(TK(result_w[:tstep]), V_vc_log, s = msize, marker = mstyle)
-plt.plot(TK(result_w[:tstep]), V_vc_log, markersize = msize, marker = mstyle)
+plt.plot(TK(result_w[:tstep:interpolation_step]), V_vc_log[:tstep:interpolation_step], markersize = msize, marker = mstyle)
 # plt.scatter(TK(result_w_0[:tstep]), V_vc_0_log, s = msize, marker = mstyle)
 plt.plot(TK(result_w_0[:tstep]), V_vc_0_log, markersize = msize, marker = mstyle)
+V_vc_average = []
+interp_T_net = []
+for i in range(n_periods):
+    V_vc_average.append(np.average(V_vc_log[i * interpolation_step: (i + 1) * interpolation_step]))
+    interp_T_net.append(TK(np.average(result_w[i * interpolation_step: (i + 1) * interpolation_step])))
+plt.plot(interp_T_net, V_vc_average, markersize = msize, marker = mstyle)
 plt.xlabel(r"$t$, s")
 plt.ylabel(r"$V_vc$")
 #plt.grid()
@@ -708,9 +736,12 @@ plt.plot(TK(result_w_0[:tstep]), q_0_log, marker = mstyle, markersize = msize)
 q_average = []
 q_rel = []
 interp_T_net = []
-for i in range(omega // modifier):
+print(n_periods * interpolation_step)
+for i in range(n_periods):
     q_average.append(np.average(q_log[i * interpolation_step: (i + 1) * interpolation_step]))
-    q_rel.append(q_average[-1] / q_0_log[i * interpolation_step + interpolation_step // 2])
+    q_rel.append(q_average[-1] / np.average(q_0_log[i * interpolation_step: 
+                                                    (i + 1) *
+                                                    interpolation_step]))
     interp_T_net.append(TK(np.average(result_w[i * interpolation_step: (i + 1) * interpolation_step])))
 # plt.scatter(interp_t_net, Ts_average, s = msize, marker = mstyle, c = 'tab:blue', alpha = 0.3)
 plt.plot(interp_T_net, q_average, c = 'tab:blue', alpha = 0.5, linestyle = 'dashed')
@@ -732,8 +763,12 @@ plt.clf()
 # plt.show()
 # plt.scatter(t_net[:tstep], j_log, s = msize, marker = mstyle)
 # plt.scatter(t_net[:tstep], j_0_log, s = msize, marker = mstyle)
-plt.plot(t_net[:tstep], j_log, marker = mstyle, markersize = msize)
+# plt.plot(t_net[:tstep], j_log, marker = mstyle, markersize = msize)
 plt.plot(t_net[:tstep], j_0_log, marker = mstyle, markersize = msize)
+j_average = []
+for i in range(n_periods):
+    j_average.append(np.average(j_log[i * interpolation_step: (i + 1) * interpolation_step]))
+plt.plot(dt * interpolation_step * np.arange(0.5, 0.5 + n_periods),j_average)
 # plt.plot(t_net[:tstep], make_interp_spline(t_net[:tstep:interpolation_step], j_log[::interpolation_step], 3)(t_net[:tstep]))
 plt.xlabel(r"$t$, s")
 plt.ylabel(r"$j$")
@@ -741,21 +776,23 @@ plt.ylabel(r"$j$")
 plt.savefig("j_plot.png")
 plt.clf()
 
+modifier = 4
+n_periods = floor(t_net_max / (2 * np.pi / omega)) // modifier
+interpolation_step = tstep // n_periods
+
 jV_average = []
 V2_average = []
 z = []
-interpolation_step = tstep // omega;
-modifier = 20
-interpolation_step *= modifier
-for i in range(omega // modifier):
+for i in range(n_periods):
     jV_average.append(np.average(j_log[i * interpolation_step: (i + 1) * interpolation_step] * V_vc_log[i * interpolation_step: (i + 1) * interpolation_step]))
     V2_average.append(np.average(V_vc_log[i * interpolation_step: (i + 1) * interpolation_step]**2))
     z.append(V2_average[-1]/jV_average[-1])
 
 plt.xlim(0, dt * tstep)
-plt.ylim(-100, 300)
-plt.scatter(dt * interpolation_step * np.arange(0.5, 0.5 + tstep // interpolation_step), z, s=10,marker="x")
-plt.plot(dt * interpolation_step * np.arange(0.5, 0.5 + tstep // interpolation_step),z)
+# plt.ylim(-100, 300)
+plt.scatter(dt * interpolation_step * np.arange(0.5, 0.5 + n_periods), z, s=10,marker="x")
+plt.plot(dt * interpolation_step * np.arange(0.5, 0.5 + n_periods),z)
+plt.title(r"$z_{classic}$ = %.1f     $z_{SCL}$ = %.1f" % (z[0], z[-1]), y = -0.2)
 #plt.grid()
 plt.savefig("z_plot.png")
 print(z)

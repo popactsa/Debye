@@ -1,0 +1,148 @@
+\subsection{Классический режим}
+\qquadСлой является монотонным, ускоряя термоэмиссионные \\электроны. Температура термоэмиссионных электронов 
+принята равной температуре поверхности стенки $T_s$:
+\begin{equation}
+	f(\upsilon, x) = n_{te}^s\sqrt{\cfrac{m_e}{2\pi T_s}}\exp{\left(\cfrac{e(\varphi - (V_f + \varphi_{se}))}{T_s}\right)}\theta(\upsilon - \upsilon_{M, te}(x))
+	\label{eq::themionic_distribution}
+\end{equation}
+где $\upsilon_{M, te(x)}$ --- минимальная скорость эмитированных термоэлектронов:
+\begin{equation}
+	\upsilon_{M, te(x)} = \sqrt{\cfrac{2e(\varphi - (V_f + \varphi_{se}))}{m_e}}
+	\label{eq::min_thermionic_electrons_velocities}
+\end{equation}
+
+Составим систему относительно неизвестных $n_e^{se}, \left(\cfrac{\partial \varphi}{\partial x}\right)_s, V_f, \varphi_{se}$. Переменные $n_i^{se}, T_s$ 
+приняты постоянными и заранее заданными.
+
+\qquadМодули токов на поверхности плитки: 
+\begin{subequations}
+	\begin{align}
+		j_i^s &= en_i^{se}\upsilon_0\\
+        j_e^s &= \cfrac{1}{4}en_e^{se}\upsilon_{e}^{th}\exp{\left(\cfrac{eV_f}{T_e}\right)}\\
+		j_{te}^s &= aT_s^2\exp{\left(\cfrac{-e(\varphi_{out} + \Delta\varphi_{Sh})}{T_s}\right)}
+	\end{align}
+	\label{eq::j_sum_classic}
+\end{subequations}
+
+\qquadТоки на поверхность плитки квазистационарно уравновешены:
+\begin{equation}
+	0 = j_i^s - j_e^s + j_{te}^s
+	\label{eq::quasineutral_j_balance}
+\end{equation}
+
+\begin{equation}
+    V_f = \cfrac{T_e}{e}\ln{\left\{
+        \sqrt{\cfrac{2\pi m_e}{m_i}}\cfrac{n_i^{se}}{n_e^{se}} 
+    + \cfrac{j_s}{\cfrac{1}{4}en_e^{se}\upsilon_e^{th}}
+\right\}}
+	\label{eq::quasineutral_j_balance}
+\end{equation}
+
+При $T_s \rightarrow 0$~\eqref{eq::quasineutral_j_balance} переходит в классическое выражение~\eqref{eq::canonical::quasineutral_j_balance}~\cite{chen1984introduction}:
+\begin{equation}
+    V_f = \cfrac{T_e}{2e}\ln{\left\{
+    \cfrac{2\pi m_e}{m_i}
+\right\}}
+	\label{eq::canonical::quasineutral_j_balance}
+\end{equation}
+
+Вторым уравнением системы является критерий Бома для составленной модели. 
+Примем, что вход в слой соответствует точке, где скорость ионов достигает
+минимально разрешенной критерием Бома скорости, т.е. в этой точке среда квазинейтральна:
+
+\begin{equation}
+	n_i^{se} = n_e^{se} + n_{te}^s\erfc\left(\sqrt{\cfrac{-eV_f}{T_s}}\right)\exp{\left[\cfrac{-eV_f}{T_s}\right]}
+	\label{eq::quasineutrality_classic}
+\end{equation}
+
+\qquadТ.к. термоэлектроны подчиняются максвелловскому распределению, 
+плотность электронов термоэлектронной эмиссии на поверхности плитки определена как:
+
+\begin{equation}
+    n_{te}^s = \cfrac{j_{te}^s}{\cfrac{1}{4}e\upsilon_{te}^{th}}
+	\label{eq::nte_s_classic}
+\end{equation}
+
+Ионы, имеющие одинаковую скорость, можно описать при помощи закона сохранения энергии:
+
+\begin{equation}
+	\upsilon_i(x) = \upsilon_0\sqrt{1 - \cfrac{2e(\varphi-\varphi_{se})}{m_i\upsilon_0^2}}
+\end{equation}
+Тогда, из уравнения непрерывности в отсутствиe процесса накопления заряда в слое:
+
+\begin{equation}
+	\cfrac{dj_i}{dx} = 0
+\end{equation}
+cледует:
+
+\begin{equation}
+	n_i(x) = n_i^{se}\cfrac{1}{\sqrt{1 - \cfrac{2e(\varphi-\varphi_{se})}{m_i\upsilon_0^2}}}
+\end{equation}
+
+Критерий Бома может быть получен из разложения в ряд Тейлора правой части уравнения Пуассона~\eqref{eq::Poisson_classic} по 
+малому параметру $\Delta = \varphi - \varphi_{se} \ll T_s \ll T_e$.
+
+\begin{equation}
+	\begin{split}
+	\cfrac{d^2\varphi}{dx^2} = -4\pi e\left(n_i^{se}\cfrac{1}{\sqrt{1 - \cfrac{2e(\varphi-\varphi_{se})}{m_i\upsilon_0^2}}} - n_e^{se}\exp{\cfrac{e(\varphi - \varphi_{se})}{T_e}} -\right.
+	\\ \left.- n_{te}^w\erfc\left[\sqrt{\cfrac{e(\varphi - (\varphi_{se} + V_f))}{T_w}}\right]\exp{\cfrac{e(\varphi - (\varphi_{se} + V_f))}{T_w}}\right)
+	\end{split}
+	\label{eq::Poisson_classic}
+\end{equation}
+
+\begin{equation}
+	\begin{split}
+	&\cfrac{d^2\varphi}{dx^2} = -4\pi\left(n_i^{se}\cfrac{1}{m_i\upsilon_0^2} - n_e^{se}\cfrac{1}{T_e} - \right. 
+		\\ &\left. - n_{te}^w\cfrac{1}{T_w}\left[\exp{\cfrac{-eV_f}{T_w}}\erfc{\sqrt{\cfrac{-eV_f}{T_w}}} - \sqrt{\cfrac{1}{\pi}}\cfrac{1}{\sqrt{\cfrac{-eV_f}{T_w}}}\right]\right)\Delta \ge 0
+	\end{split}
+    \label{eq::Poisson_Bohm_classic}
+\end{equation}
+
+Правая часть уравнения~\eqref{eq::Poisson_Bohm_classic} должна быть больше 0 для существования неосциллирующего решения, следовательно,
+выражение в скобках должно быть меньше 0, откуда получаем выражение для критерия Бома:
+
+\begin{equation}
+	m_i\upsilon_0^2 \ge \cfrac{n_i^{se}T_eT_w}{n_e^{se}T_w + n_{te}^wT_e\left[\erfc{\sqrt{\cfrac{-eV_f}{T_w}}}\exp{\cfrac{-eV_f}{T_w}} - \sqrt{\cfrac{1}{\pi}}\cfrac{1}{\sqrt{\cfrac{-eV_f}{T_w}}}\right]}
+	\label{eq::Bohm_classic}
+\end{equation}
+
+Полученное выражение~\eqref{eq::Bohm_classic} при $T_s\rightarrow0$ переходит в классическое\cite{stangeby2000plasma}:
+\begin{equation}
+    \upsilon_0 \ge \sqrt{\cfrac{T_e}{m_i}}
+	\label{eq::canonical::Bohm_classic}
+\end{equation}
+
+\qquadЗамыкающим систему является проинтегрированное между входом в слой и поверхностью стенки уравнение Пуассона:
+
+\begin{equation}
+	\begin{split}
+        \left(\cfrac{d\varphi}{dx}\right)^2_s &= 8\pi\left(n_i^{se}m_i\upsilon_0^2\sqrt{1 - \cfrac{2e(\varphi-\varphi_{se})}{m_i\upsilon_0^2}}\right. + 
+	   \\ &+ n_e^{se}T_e\exp{\cfrac{e(\varphi-\varphi_{se})}{T_e}} + n_{te}^sT_s \times
+	\\ & \times \left[\exp{\cfrac{e(\varphi - (V_f + \varphi_{se}))}{T_s}}\erfc{\sqrt{\cfrac{e(\varphi - (V_f + \varphi_{se}))}{T_s}}} \right.+
+	\\ &\left. + \cfrac{2}{\sqrt{\pi}}\sqrt{\cfrac{e(\varphi - (V_f + \varphi_{se}))}{T_s}}\right]\Bigr|_{\varphi_{se}}^{V_f + \varphi_{se}}\Bigg)
+	\end{split}
+    \label{eq::Poisson_classic_wall}
+\end{equation}
+
+\qquadТаким образом, получена система~\eqref{eq::quasineutrality_classic},~\eqref{eq::quasineutral_j_balance},~\eqref{eq::Poisson_classic_wall},~\eqref{eq::Bohm_classic} относительно четырёх неизвестных: $n_e^{se}$, 
+$V_f$, $\varphi'(x = 0), \varphi_{se}$ при $T_s, n_i^{se}$ взятых как параметры ($n_{te}^s$ --- производный параметр)
+
+Для решения нестационарной задачи с учётом теплопроводности в материале стекни требуется выражение для теплового потока.
+Тепловой поток состоит из нескольких компонент:
+
+\begin{equation}
+    q = q_i + q_e + q_{te}
+\end{equation}
+
+В типичных сценариях работы токамака $T_s ~\approx0.3\text{ эВ} \ll T_e \approx 200\text{ эВ}$, что позволяет пренебречь 
+тепловым потоком термоэмиссионных электронов:
+
+\begin{equation}
+    q_{te} = j_{te}\cdot\cfrac{2T_s}{e} \propto T_s^{3/2} \ll T_e^{3/2} \proptoinverse q_e,q_i
+\end{equation}
+
+Таким образом:
+
+\begin{equation}
+    q = n_i^{se}\upsilon_0\left(\cfrac{m_i\upsilon_0^2}{2} - eV_f\right) + \cfrac{1}{4}n_e^{se}\upsilon_e^{th}\cdot2T_e\exp\left[\cfrac{eV_f}{T_e}\right]
+\end{equation}

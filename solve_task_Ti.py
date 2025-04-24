@@ -3,6 +3,7 @@ from math import fabs
 import warnings
 import time as tm
 import datetime
+from scipy.interpolate import make_smoothing_spline
 import matplotlib.pyplot as plt
 from decimal import Decimal
 from scipy.special import erfc, erf
@@ -27,6 +28,8 @@ plt.rcParams["figure.autolayout"] = True
 # Plot hints styles
 props = dict(boxstyle="square", facecolor="white")
 props_note = dict(boxstyle="ellipse", facecolor="white")
+
+print()
 
 # Physical quantities in cgs
 
@@ -55,7 +58,8 @@ kappa = 116.6 * 1.0e5 / K_to_erg  # Thermal diffusivity
 
 # Plasma properties
 nse = 1.0e13 # plasma density
-Te  = 200.0 * eV_to_erg # electron temperature
+Te  = 150.0 * eV_to_erg # electron temperature
+Ti  = 100.0 * eV_to_erg / Te # ion temperature
 # deltae  = 0.0 # SEE coefficient
 
 # Calculated constants
@@ -68,6 +72,23 @@ tau_p = 2 * np.pi / omega_p # Plasma period
 # Conversion functions
 TK = lambda T : T * Te * erg_to_K
 TD = lambda T : T / Te / erg_to_K
+
+spline_T_net = TD(np.array([1000, 1200, 1400, 1600, 1800, 2000, 2200, 2400, 2600, 2800, 3000,
+               3200, 3400, 3600, 3695]))
+kappa_values = np.array([116.6, 113.5, 111.2, 110.1, 109.0, 108.3, 107.2, 106.8, 107.4,
+                108.8, 107.5, 107.2, 103.6, 101.1, 99.0]) * 1.0e5 / K_to_erg
+kappa_spline = make_smoothing_spline(spline_T_net, kappa_values, None)
+Cp_values = np.array([147.7, 152.2, 157.1, 162.5, 166.0, 174.7, 181.6, 189.1,
+                      197.6, 207.0, 217.8, 230.3, 244.8, 261.7, 270.7]) * 1.0e4 / K_to_erg
+Cp_spline = make_smoothing_spline(spline_T_net, Cp_values, None)
+rho_values = np.array([19.07, 19.01, 18.95, 18.89, 18.82, 18.72, 18.62, 18.52,
+                       18.42, 18.32, 18.22, 18.12, 18.0, 17.8, 17.5])
+rho_spline = make_smoothing_spline(spline_T_net, rho_values, None)
+C_values = np.zeros(np.shape(kappa_values))
+
+for i in range(np.shape(C_values)[0]):
+    C_values[i] = kappa_values[i] / (rho_values[i] * Cp_values[i])
+C_spline = make_smoothing_spline(spline_T_net, C_values, None)
 
 # Problem parameters
 L = 1.2e-1 # Thickness of a sample, sm
@@ -82,6 +103,12 @@ t_net_steps = 35001
 print('t_net_steps : %d' % t_net_steps)
 t_net = np.linspace(0, t_net_max, t_net_steps)
 dt = t_net[1] - t_net[0]
+
+phi_se = -0.5 * np.sqrt(1 + Ti)
+phi_se_fast = phi_se * (1 + np.sqrt(Ti / (Ti + Te)))**2
+dphi_se_fast = phi_se_fast - phi_se
+phi_se_slow = phi_se * (1 - np.sqrt(Ti / (Ti + Te)))**2
+dphi_se_slow = phi_se_slow - phi_se
 
 # Useful calculating functions
 def nte_w_func(derw, Tw):
@@ -99,6 +126,17 @@ def nte_w_func(derw, Tw):
     )
 
 upsilon_0_func = lambda phi_se : np.sqrt(-2.0 * phi_se)
+upsilon_0_fast_func = lambda phi : upsilon_0_func(phi_se_fast) * np.sqrt((phi +
+                                                                          phi_se_fast
+                                                                          -
+                                                                          phi_se)/ phi_se_fast)
+upsilon_0_slow_func = lambda phi : upsilon_0_func(phi_se_slow) * np.sqrt((phi +
+                                                                          phi_se_slow
+                                                                          -
+                                                                          phi_se)/ phi_se_slow)
+upsilon_0_median_func = lambda phi: (upsilon_0_fast_func(phi) +
+                                     upsilon_0_slow_func(phi)) / 2.0
+ci = (upsilon_0_func(phi_se_fast) - upsilon_0_func(phi_se_slow)) / 2.0
 
 def erfcxexp_limit_resolve(x):
     if x > 100:
@@ -116,70 +154,69 @@ def erfcxexp_limit_resolve(x):
 
 def Poisson_integrated_classic_trans(phi, y, args):
     Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
+    nte_w, phi_se = args
     return (
-        upsilon_0 * np.sqrt(upsilon_0**2 - 2 * (phi - phi_se))
+        4.0/3.0 
+        * upsilon_0_func(phi_se)
+        / (phi_se_fast - phi_se_slow)
+        * (
+            (-(phi + (phi_se_slow - phi_se)))**1.5
+            - (-(phi + (phi_se_fast - phi_se)))**1.5
+        )
         + ne_se * np.exp(phi - phi_se)
         + nte_w
         * Tw
         * (
             erfcxexp_limit_resolve((phi - (V_f + phi_se)) / Tw)
             + 2 / np.sqrt(np.pi) * np.sqrt((phi - (phi_se + V_f)) / Tw)
+            )
         )
-    )
-
 
 def Poisson_classic_trans(y, args):
     Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
+    nte_w, phi_se = args
     return -2.0 * (
-        Poisson_integrated_classic_trans(phi_se + V_f, y, args)
-        - Poisson_integrated_classic_trans(phi_se, y, args)
-    )
+            Poisson_integrated_classic_trans(phi_se + V_f, y, args)
+            - Poisson_integrated_classic_trans(phi_se, y, args)
+            )
 
 
 def quasineutrality_trans(y, args):
     Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
+    nte_w, phi_se = args
     return 1 - nte_w * erfcxexp_limit_resolve(-V_f / Tw) - ne_se
 
 
 def j_wall_trans(y, args):
     Tw, V_f, ne_se = y
-    nte_w, upsilon_0, phi_se = args
+    nte_w, phi_se = args
     vte = np.sqrt(8 * Tw * mi / np.pi / me)
     return (
-            upsilon_0
+            upsilon_0_median_func(phi_se)
             + 0.25 * vte * nte_w
             - 0.25 * vth * ne_se * np.exp(V_f)
             )
-    # return V_f - np.log(
-    #     4 * upsilon_0 / (ne_se * np.sqrt(8 * mi / (np.pi * me)))
-    #     + nte_w / ne_se * np.sqrt(Tw)
-    # )
 
 
 
 def sys_trans(y, *args):
     Tw, V_f, ne_se = y
     phi_se, = args
-    args1 = [nte_w_func(0, Tw), upsilon_0_func(phi_se), phi_se]
+    args1 = [nte_w_func(0, Tw), phi_se]
     return [
-        # Bohm_criterion_trans(y, args1),
-        Poisson_classic_trans(y, args1),
-        j_wall_trans(y, args1),
-        quasineutrality_trans(y, args1),
-    ]
- 
-sol_trans_init_guesses = [
-    [TD(3165), -1.1866, 0.892],
-    [TD(2900), -1.1866, 0.892],
-    [TD(2750), -1.15, 0.9],
-    [TD(3200), -1.25, 0.86]
-]
+            # Bohm_criterion_trans(y, args1),
+            Poisson_classic_trans(y, args1),
+            j_wall_trans(y, args1),
+            quasineutrality_trans(y, args1),
+            ]
 
-phi_se = -0.5
-upsilon_0 = upsilon_0_func(phi_se)
+sol_trans_init_guesses = [
+        [TD(3165), -1.1866, 0.892],
+        [TD(2900), -1.1866, 0.892],
+        [TD(2750), -1.15, 0.9],
+        [TD(3200), -1.25, 0.86]
+        ]
+
 
 properties_trans = np.zeros(5)
 
@@ -197,21 +234,22 @@ if sw_trans == False:
 else:
     properties_trans = 0.0, sol_trans[1], sol_trans[2], sol_trans[1], sol_trans[0]
 
+
 def j_func(y, Tw, Tw_trans):
     derw, V_f, ne_se, V_vc = y
     vte = np.sqrt(8 * Tw * mi / np.pi / me)
     if (Tw > Tw_trans):
         return (
-            1.0
-            - 0.25 * vth * ne_se * np.exp(V_vc)
-            + 0.25 * vte * nte_w_func(derw, Tw) * np.exp((V_vc - V_f)/Tw)
-        )
+                upsilon_0_median_func(phi_se)
+                - 0.25 * vth * ne_se * np.exp(V_vc)
+                + 0.25 * vte * nte_w_func(derw, Tw) * np.exp((V_vc - V_f)/Tw)
+                )
     else:
         return (
-            1.0
-            - 0.25 * vth * ne_se * np.exp(V_f)
-            + 0.25 * vte * nte_w_func(derw, Tw)
-        )
+                upsilon_0_median_func(phi_se)
+                - 0.25 * vth * ne_se * np.exp(V_f)
+                + 0.25 * vte * nte_w_func(derw, Tw)
+                )
 
 # V_func = lambda j : np.log((j_func - upsilon_0) * 4.0 / vth / ne_se)
 
@@ -219,8 +257,19 @@ def j_func(y, Tw, Tw_trans):
 
 def q_ion_func(y, is_MW = False):
     derw, V_f, ne_se, V_vc, Tw, Tw_trans = y
-    if (phi_se > 0) : return 0.0
-    q_net = upsilon_0 * (upsilon_0**2 / 2 - V_vc)
+    # q_net = 1.0
+    q_net = (
+            (upsilon_0_fast_func(V_vc + phi_se)**4 
+             - upsilon_0_slow_func(V_vc + phi_se)**4) 
+            / 8.0 
+            / (upsilon_0_fast_func(V_vc + phi_se) 
+               - upsilon_0_slow_func(V_vc + phi_se))
+            * 2.0 * upsilon_0_func(phi_se) 
+            / (upsilon_0_fast_func(V_vc + phi_se) + upsilon_0_slow_func(V_vc +
+                                                                        phi_se))
+            )
+    # q_net = upsilon_0_median_func(phi_se + V_f)**3 / 2
+    print(q_net)
     if (is_MW == True) :
         q_net = q_net * nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
     return q_net
@@ -229,14 +278,15 @@ def q_e_func(y, is_MW = False):
     derw, V_f, ne_se, V_vc, Tw, Tw_trans = y
     if (Tw < Tw_trans):
         q_net = (
-            0.25 * ne_se * vth * 2 * np.exp(V_f)
-        )
+                0.25 * ne_se * vth * 2 * np.exp(V_f)
+                )
         print("Classic!")
     else:
         q_net = (
-            0.25 * ne_se * vth * 2 * np.exp(V_vc)
-        )
+                0.25 * ne_se * vth * 2 * np.exp(V_vc)
+                )
         print("SCL!")
+    print(q_net)
     if (is_MW == True) :
         q_net = q_net * nse * cs * Te * 1.0e6 * 1.0e-2 * 1.0e-7 * 1.0e-6
     return q_net
@@ -245,174 +295,174 @@ def q_func(y, is_MW = False):
     return (
             q_e_func(y, is_MW)
             + q_ion_func(y, is_MW)
-        )
+            )
 
 # System for classic regime
 def j_wall_classic(y, args):
     derw, V_f, ne_se = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     vte = np.sqrt(8 * Tw * mi / np.pi / me)
     return (
-            upsilon_0
+            upsilon_0_median_func(phi_se)
             + 0.25 * vte * nte_w
             - 0.25 * vth * ne_se * np.exp(V_f)
             )
-    # return V_f - np.log(
-    #     4 * upsilon_0 / (ne_se * np.sqrt(8 * mi / (np.pi * me)))
-    #     + nte_w / ne_se * np.sqrt(Tw)
-    # )
-
-def Bohm_criterion_classic(y, args):
-    derw, V_f, ne_se = y
-    Tw, nte_w, upsilon_0, phi_se = args
-    return phi_se + 0.5 * Tw / (
-        ne_se * Tw
-        + nte_w
-        * (
-            erfcxexp_limit_resolve(-V_f / Tw)
-            - 1 / (np.sqrt(np.pi) * np.sqrt(-V_f / Tw))
-        )
-    )
 
 
 def quasineutrality_classic(y, args):
     derw, V_f, ne_se = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     return 1 - nte_w * erfcxexp_limit_resolve(-V_f / Tw) - ne_se
 
 
 def Poisson_integrated_classic(phi, y, args):
     derw, V_f, ne_se = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     return (
-        upsilon_0**2 * np.sqrt(1 - 2 * (phi - phi_se) / upsilon_0**2)
+        4.0/3.0 
+        * upsilon_0_func(phi_se)
+        / (phi_se_fast - phi_se_slow)
+        * (
+            (-(phi + (phi_se_slow - phi_se)))**1.5
+            - (-(phi + (phi_se_fast - phi_se)))**1.5
+        )
         + ne_se * np.exp(phi - phi_se)
         + nte_w
         * Tw
         * (
             erfcxexp_limit_resolve((phi - (V_f + phi_se)) / Tw)
             + 2 / np.sqrt(np.pi) * np.sqrt((phi - (phi_se + V_f)) / Tw)
+            )
         )
-
-    )
 
 
 def Poisson_classic(y, args):
     derw, V_f, ne_se = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     return derw**2 - 2.0 * (
-        Poisson_integrated_classic(phi_se + V_f, y, args)
-        - Poisson_integrated_classic(phi_se, y, args)
-    )
+            Poisson_integrated_classic(phi_se + V_f, y, args)
+            - Poisson_integrated_classic(phi_se, y, args)
+            )
 
 
 def sys_classic(y, *args):
     derw, V_f, ne_se = y
-    phi_se, Tw = args
-    args1 = [Tw, nte_w_func(derw, Tw), upsilon_0_func(phi_se), phi_se]
+    Tw, = args
+    args1 = [Tw, nte_w_func(derw, Tw)]
     return [
-        # Bohm_criterion_classic(y, args1),
-        quasineutrality_classic(y, args1),
-        j_wall_classic(y, args1),
-        Poisson_classic(y, args1)
-    ]
+            # Bohm_criterion_classic(y, args1),
+            quasineutrality_classic(y, args1),
+            j_wall_classic(y, args1),
+            Poisson_classic(y, args1)
+            ]
 
 # System for SCL regime
 def jwall_SCL(y, args):
     derw, V_f, ne_se, V_vc = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     dip = (V_f - V_vc) / Tw
     return (
-        upsilon_0
-        - 0.25 * ne_se * np.sqrt(8 * mi / (np.pi * me)) * np.exp(V_vc)
-        + 0.25 * nte_w * np.sqrt(Tw * 8 * mi / (np.pi * me)) * np.exp(-dip)
-    )  #
+            upsilon_0_median_func(phi_se)
+            - 0.25 * ne_se * np.sqrt(8 * mi / (np.pi * me)) * np.exp(V_vc)
+            + 0.25 * nte_w * np.sqrt(Tw * 8 * mi / (np.pi * me)) * np.exp(-dip)
+            )  #
 
 
 def quasineutrality_SCL(y, args):
     derw, V_f, ne_se, V_vc = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     dip = (V_f - V_vc) / Tw
     return (
-        1 - ne_se - nte_w * erfcxexp_limit_resolve(-V_vc / Tw) * np.exp(-dip)
-    )  #
+            1 - ne_se - nte_w * erfcxexp_limit_resolve(-V_vc / Tw) * np.exp(-dip)
+            )  #
 
 
 def Poisson_integrated_SCL_beta(phi, y, args):
     derw, V_f, ne_se, V_vc = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     dip = (V_f - V_vc) / Tw
     return (
-        upsilon_0**2 * np.sqrt(1 - 2 * (phi - phi_se) / upsilon_0**2)
-        + ne_se * np.exp(phi - phi_se)
-        + nte_w
-        * Tw
-        * np.exp(-dip)
+        4.0/3.0 
+        * upsilon_0_func(phi_se)
+        / (phi_se_fast - phi_se_slow)
         * (
-            erfcxexp_limit_resolve((phi - (V_vc + phi_se)) / Tw)
-            + 2.0
-            / np.sqrt(np.pi)
-            * np.sqrt((phi - (V_vc + phi_se)) / Tw)
+            (-(phi + (phi_se_slow - phi_se)))**1.5
+            - (-(phi + (phi_se_fast - phi_se)))**1.5
         )
-    )  # ~~~
+            + ne_se * np.exp(phi - phi_se)
+            + nte_w
+            * Tw
+            * np.exp(-dip)
+            * (
+                erfcxexp_limit_resolve((phi - (V_vc + phi_se)) / Tw)
+                + 2.0
+                / np.sqrt(np.pi)
+                * np.sqrt((phi - (V_vc + phi_se)) / Tw)
+                )
+            )  # ~~~
 
 
 def Poisson_SCL_beta(y, args):
     derw, V_f, ne_se, V_vc = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w= args
     return -2 * (
-        Poisson_integrated_SCL_beta(V_vc + phi_se, y, args)
-        - Poisson_integrated_SCL_beta(phi_se, y, args)
-    )
+            Poisson_integrated_SCL_beta(V_vc + phi_se, y, args)
+            - Poisson_integrated_SCL_beta(phi_se, y, args)
+            )
 
 def Poisson_integrated_SCL_alpha(phi, y, args):
     derw, V_f, ne_se, V_vc = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     dip = (V_f - V_vc) / Tw
     res = (
-        upsilon_0**2 * np.sqrt(1 - 2 * (phi - phi_se) / upsilon_0**2)
-        + ne_se
+        4.0/3.0 
+        * upsilon_0_func(phi_se)
+        / (phi_se_fast - phi_se_slow)
         * (
-            # np.exp(V_vc) * erfcxexp_limit_resolve(phi - (V_vc + phi_se))
-            np.exp(phi - phi_se) * erfc(np.sqrt(phi - (V_vc + phi_se)))
-            + 2.0
-            / np.sqrt(np.pi)
-            * (np.sqrt(phi - (V_vc + phi_se)))
-            * np.exp(V_vc)
+            (-(phi + (phi_se_slow - phi_se)))**1.5
+            - (-(phi + (phi_se_fast - phi_se)))**1.5
         )
-        + nte_w
-        * Tw
-        * (
-            np.exp((phi - (V_f + phi_se))/Tw) * (1 + erf(np.sqrt((phi - (V_vc + phi_se)) / Tw)))
-            - 2.0
-            / np.sqrt(np.pi)
-            * (np.sqrt((phi - (V_vc + phi_se))/Tw))
-            * np.exp((V_vc - V_f)/Tw)
-        )
-    )
+            + ne_se
+            * (
+                # np.exp(V_vc) * erfcxexp_limit_resolve(phi - (V_vc + phi_se))
+                np.exp(phi - phi_se) * erfc(np.sqrt(phi - (V_vc + phi_se)))
+                + 2.0
+                / np.sqrt(np.pi)
+                * (np.sqrt(phi - (V_vc + phi_se)))
+                * np.exp(V_vc)
+                )
+            + nte_w
+            * Tw
+            * (
+                np.exp((phi - (V_f + phi_se))/Tw) * (1 + erf(np.sqrt((phi - (V_vc + phi_se)) / Tw)))
+                - 2.0
+                / np.sqrt(np.pi)
+                * (np.sqrt((phi - (V_vc + phi_se))/Tw))
+                * np.exp((V_vc - V_f)/Tw)
+                )
+            )
     return res
 
 def Poisson_SCL_alpha(y, args):
     derw, V_f, ne_se, V_vc = y
-    Tw, nte_w, upsilon_0, phi_se = args
+    Tw, nte_w = args
     return derw**2 - 2 * (
-        Poisson_integrated_SCL_alpha(V_f + phi_se, y, args)
-        - Poisson_integrated_SCL_alpha(V_vc + phi_se, y, args)
-    )
+            Poisson_integrated_SCL_alpha(V_f + phi_se, y, args)
+            - Poisson_integrated_SCL_alpha(V_vc + phi_se, y, args)
+            )
 
 
 def sys_SCL(y, *args):
     derw, V_f, ne_se, V_vc = y
-    phi_se, Tw = args
+    Tw, = args
     nte_w = nte_w_func(derw, Tw)
-    upsilon_0 = upsilon_0_func(phi_se)
-    args1 = [Tw, nte_w, upsilon_0, phi_se]
+    args1 = [Tw, nte_w]
     return [
-        quasineutrality_SCL(y, args1),
-        jwall_SCL(y, args1),
-        Poisson_SCL_alpha(y, args1),
-        Poisson_SCL_beta(y, args1),
-    ]
+            quasineutrality_SCL(y, args1),
+            jwall_SCL(y, args1),
+            Poisson_SCL_alpha(y, args1),
+            Poisson_SCL_beta(y, args1),
+            ]
 
 
 # Heat conduction system
@@ -442,7 +492,7 @@ def u_border(x_point, u, x):
 def solve_debye(Tw):
     result = np.ndarray(4, dtype = float)
     derw_trans, V_f_trans, ne_se_trans, V_vc_trans, Tw_trans = properties_trans;
-    args = (phi_se, Tw)
+    args = (Tw, )
     if Tw < Tw_trans:
         line = 2 - Tw / T0 
         # sol = fsolve(sys_classic, [1.0 * line, -2.5 + 1.0  * ((Tw - T0) / (Tw_trans - T0)) , 1.0 - 0.1 * line], args=args)
@@ -452,26 +502,26 @@ def solve_debye(Tw):
         j = 0
         sol = np.ones((4, 1))
         while (
-            not (
-                np.less(sys_SCL(sol, *args), np.full(len(sol), 1.0e-7))
-                == np.ones(len(sol), dtype=bool)
-            ).all()
-        ) and j < 30:
+                not (
+                    np.less(sys_SCL(sol, *args), np.full(len(sol), 1.0e-7))
+                    == np.ones(len(sol), dtype=bool)
+                    ).all()
+                ) and j < 30:
             sol = fsolve(
-                sys_SCL,
-                [
-                    0.0 - 0.1 * j,
-                    V_f_trans + 0.0001 * j,
-                    ne_se_trans,
-                    V_vc_trans,
-                ],
-                args=args,
-            )
+                    sys_SCL,
+                    [
+                        0.0 - 0.1 * j,
+                        V_f_trans + 0.0001 * j,
+                        ne_se_trans,
+                        V_vc_trans,
+                        ],
+                    args=args,
+                    )
             j += 1
         result = sol
     return result
 
-derw, V_f, ne_se = fsolve(sys_classic, [1.0, -2.7, 0.995], args = (phi_se, T0))
+derw, V_f, ne_se = fsolve(sys_classic, [1.0, -2.7, 0.995], args = (T0,))
 V_vc = V_f
 Tw = T0
 
@@ -492,31 +542,31 @@ def rhs(t, u):
     u[1] = u_border(-0.5, 
                     [T0, u[2], u[3], u[4], u[5]],
                     [0.0, 0.5, 1.5, 2.5, 3.5]
-    )
+                    )
     u[0] = u_border(-1.5,
                     [u[1], T0, u[2], u[3], u[4]], 
                     [-0.5, 0.0, 0.5, 1.5, 2.5]
-    )
+                    )
     derw_trans, V_f_trans, ne_se_trans, V_vc_trans, Tw_trans = properties_trans;
     Tw = u_border(0.0, # calculate for the next step
-           [u[-7], u[-6], u[-5], u[-4], u[-3]], 
-           [-4.5, -3.5, -2.5, -1.5, -0.5]
-    ) 
+                  [u[-7], u[-6], u[-5], u[-4], u[-3]], 
+                  [-4.5, -3.5, -2.5, -1.5, -0.5]
+                  ) 
     grad_dx_right = q_func([derw, V_f, ne_se, V_vc, Tw, Tw_trans]) * ((nse * cs) / kappa) * dx
     # grad_dx_right = (1.0e12 / (kappa * Te)) * dx
     u[-2] = (
-        -24.0 * grad_dx_right
-        + 17.0 * u[-3]
-        + 9.0 * u[-4]
-        - 5.0 * u[-5]
-        + 1.0 * u[-6]
-    ) / 22.0
+            -24.0 * grad_dx_right
+            + 17.0 * u[-3]
+            + 9.0 * u[-4]
+            - 5.0 * u[-5]
+            + 1.0 * u[-6]
+            ) / 22.0
     u[-1] = (
-        -24.0 * grad_dx_right
-        + 27.0 * u[-2]
-        - 27.0 * u[-3]
-        + 1.0 * u[-4]
-    )
+            -24.0 * grad_dx_right
+            + 27.0 * u[-2]
+            - 27.0 * u[-3]
+            + 1.0 * u[-4]
+            )
     print(TK(u[-3:]))
     for i in range(2, ntotal - 2):
         d2udx2 = (-u[i-2] + 16.*u[i-1] - 30.*u[i] + 16.*u[i+1] - u[i+2]) / d2x12
@@ -545,6 +595,7 @@ u0 = np.full((ntotal), T0)
 result = np.ndarray((t_net_steps, ntotal))
 result[0, :] = u0[:]
 
+# r = ode(rhs).set_integrator('vode', method='bdf', nsteps=1e6)
 r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
 r.set_initial_value(u0, 0)
 index = 1
@@ -562,9 +613,9 @@ while r.successful() and index < t_net_steps and index <= tstep:
     result[index, :] = r.y
 
     Tw = u_border(0.0, # calculate for the next step
-           [result[index, -7], result[index, -6], result[index, -5], result[index, -4], result[index, -3]], 
-           [-4.5, -3.5, -2.5, -1.5, -0.5]
-    ) 
+                  [result[index, -7], result[index, -6], result[index, -5], result[index, -4], result[index, -3]], 
+                  [-4.5, -3.5, -2.5, -1.5, -0.5]
+                  ) 
     result_w[index] = Tw
 
     derw, V_f, ne_se, V_vc = solve_debye(Tw)
@@ -588,10 +639,11 @@ fig = plt.figure(figsize=(8, 6), dpi=300)
 
 #### non-oscilating
 
-derw, V_f, ne_se = fsolve(sys_classic, [1.0, -2.7, 0.995], args = (phi_se, T0))
+derw, V_f, ne_se = fsolve(sys_classic, [1.0, -2.7, 0.995], args = (T0, ))
 V_vc = V_f
 Tw = T0
 
+# r = ode(rhs).set_integrator('vode', method='bdf', nsteps=1e6)
 r = ode(rhs, jac).set_integrator('vode', method='bdf', nsteps=1e6)
 r.set_initial_value(u0, 0)
 index = 1
@@ -609,9 +661,9 @@ while r.successful() and index < t_net_steps and index <= tstep:
     result_0[index, :] = r.y
 
     Tw = u_border(0.0, # calculate for the next step
-           [result_0[index, -7], result_0[index, -6], result_0[index, -5], result_0[index, -4], result_0[index, -3]], 
-           [-4.5, -3.5, -2.5, -1.5, -0.5]
-    ) 
+                  [result_0[index, -7], result_0[index, -6], result_0[index, -5], result_0[index, -4], result_0[index, -3]], 
+                  [-4.5, -3.5, -2.5, -1.5, -0.5]
+                  ) 
     result_w_0[index] = Tw
 
     derw, V_f, ne_se, V_vc = solve_debye(Tw)
@@ -666,30 +718,19 @@ plt.plot(interp_t_net, Ts_average, c = 'tab:blue', alpha = 0.5, linestyle = 'das
 plt.savefig("temperature_plot.png")
 plt.clf()
 
-
-plt.xlabel(r"$t$, s")
-plt.ylabel(r"$T_{osc} / T_{plain}$, K")
-plt.xlim(0, t_net_max)
-T_rel = []
-for i in range(np.shape(result_w)[0]):
-    T_rel.append(result_w[i] / result_w_0[i])
-plt.scatter(t_net[:tstep + 1], T_rel, s = msize, marker = mstyle)
-plt.savefig("temperature_rel_plot.png")
-plt.clf()
-
 interpolation_step = tstep // omega;
 modifier = 1
 interpolation_step *= modifier
 print(tstep // interpolation_step)
 
 # plt.show()
-# plt.scatter(t_net[:tstep], V_vc_log, s = msize, marker = mstyle)
-# plt.scatter(t_net[:tstep], V_vc_0_log, s = msize, marker = mstyle)
+plt.scatter(t_net[:tstep], V_vc_log, s = msize, marker = mstyle)
+plt.scatter(t_net[:tstep], V_vc_0_log, s = msize, marker = mstyle)
 # plt.plot(t_net[:tstep], V_vc_log)
 # plt.scatter(TK(result_w[:tstep]), V_vc_log, s = msize, marker = mstyle)
-plt.plot(TK(result_w[:tstep]), V_vc_log, markersize = msize, marker = mstyle)
-# plt.scatter(TK(result_w_0[:tstep]), V_vc_0_log, s = msize, marker = mstyle)
-plt.plot(TK(result_w_0[:tstep]), V_vc_0_log, markersize = msize, marker = mstyle)
+# plt.plot(TK(result_w[:tstep]), V_vc_log, markersize = msize, marker = mstyle)
+# # plt.scatter(TK(result_w_0[:tstep]), V_vc_0_log, s = msize, marker = mstyle)
+# plt.plot(TK(result_w_0[:tstep]), V_vc_0_log, markersize = msize, marker = mstyle)
 plt.xlabel(r"$t$, s")
 plt.ylabel(r"$V_vc$")
 #plt.grid()
@@ -732,10 +773,13 @@ plt.clf()
 # plt.show()
 # plt.scatter(t_net[:tstep], j_log, s = msize, marker = mstyle)
 # plt.scatter(t_net[:tstep], j_0_log, s = msize, marker = mstyle)
-plt.plot(t_net[:tstep], j_log, marker = mstyle, markersize = msize)
-plt.plot(t_net[:tstep], j_0_log, marker = mstyle, markersize = msize)
+# plt.plot(t_net[:tstep], j_log, marker = mstyle, markersize = msize)
+# plt.plot(t_net[:tstep], j_0_log, marker = mstyle, markersize = msize)
+plt.plot(TK(result_w[:tstep]), j_log, marker = mstyle, markersize = msize)
+plt.plot(TK(result_w_0[:tstep]), j_0_log, marker = mstyle, markersize = msize)
 # plt.plot(t_net[:tstep], make_interp_spline(t_net[:tstep:interpolation_step], j_log[::interpolation_step], 3)(t_net[:tstep]))
-plt.xlabel(r"$t$, s")
+# plt.xlabel(r"$t$, s")
+plt.xlabel(r"$T_s$, K")
 plt.ylabel(r"$j$")
 #plt.grid()
 plt.savefig("j_plot.png")
@@ -744,9 +788,6 @@ plt.clf()
 jV_average = []
 V2_average = []
 z = []
-interpolation_step = tstep // omega;
-modifier = 20
-interpolation_step *= modifier
 for i in range(omega // modifier):
     jV_average.append(np.average(j_log[i * interpolation_step: (i + 1) * interpolation_step] * V_vc_log[i * interpolation_step: (i + 1) * interpolation_step]))
     V2_average.append(np.average(V_vc_log[i * interpolation_step: (i + 1) * interpolation_step]**2))
